@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "MorgantiHR",
+    "slug": "morganti-hr",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "owner": "ahamedhr",
+
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "userInterfaceStyle": "light",
+
+    "newArchEnabled": true,
+
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ahamedhr.morgantihr",     
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Allow Face ID for quick login."
+      }
+    },
+
+    "android": {
+      "package": "com.ahamedhr.morgantihr",            
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "CAMERA",
+        "POST_NOTIFICATIONS"                              
+      ],
+      "googleServicesFile": "./google-services.json",     
+      "edgeToEdgeEnabled": true
+    },
+
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",      
+          "color": "#1f3d7c",                            
+          "sounds": ["default"]                         
+        }
+      ]
+    ],
+
+    "extra": {
+      "eas": {
+        "projectId": "6a0365ad-85c2-4b64-aa6c-4b4d8c1b6c8d"
+      }
+    }
+  }
+}
