@@ -35,3 +35,14 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# --- Added ---
+# Android local SDK config (never commit)
+android/local.properties
+
+# Ignore generated native project (remove this line if you want to track native code)
+android/
+
+# Signing / secrets (uncomment as needed)
+# google-services.json
+key.properties

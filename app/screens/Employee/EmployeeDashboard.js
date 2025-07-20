@@ -19,6 +19,7 @@ import MapView, { Marker } from 'react-native-maps';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../../services/api';
+import { useSelector } from 'react-redux';
 
 // We merge your color palette from both snippets
 const COLORS = {
@@ -114,7 +115,18 @@ export default function EmployeeDashboard() {
   const mapOpacity     = useRef(new Animated.Value(0)).current;
   const messageOpacity = useRef(new Animated.Value(0)).current;
   const buttonScale    = useRef(new Animated.Value(1)).current;
+  const apiPrefix = getRoutePrefixByRole();
 
+  function getRoutePrefixByRole() {
+    const role = useSelector((state) => state.auth.user?.role);
+    if (role === 'hr_admin') return '/admin';
+    if (role === 'manager') return '/manager';
+    if (role === 'finance') return '/finance';
+    if (role === 'ceo') return '/ceo';
+    if (role === 'finance_coordinator') return '/finance_coordinator';
+    return '/employee';
+  }
+console.log('API Prefix:', apiPrefix);
   // =============== EFFECTS ===============
   useEffect(() => {
     (async () => {
@@ -206,12 +218,12 @@ export default function EmployeeDashboard() {
         setLoading(true);
     }
     try {
-      const dash = await api.get('/employee/dashboard');
+      const dash = await api.get(`${apiPrefix}/dashboard`);
       setEmployee(dash.data.employee || {});
       if (dash.data.vacations) setVacations(dash.data.vacations);
 
       // Vacation requests
-      const reqResp = await api.get('/employee/vacation-requests');
+      const reqResp = await api.get(`${apiPrefix}/vacation-requests`);
       setRequests(reqResp.data || []);
 
       // Announcements

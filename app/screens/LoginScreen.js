@@ -167,21 +167,24 @@ export default function LoginScreen() {
       .catch((err) => {
         console.log("Login error:", err);
 
-        // Friendly handling of credential errors
+        const statusCode = err?.status;
         let message = "Something went wrong, please try again.";
         let fieldErrors = {};
 
-        if (err?.status === 401 || err?.response?.status === 401) {
+        if (statusCode === 401) {
           message = "Incorrect employee code or password.";
-          fieldErrors = { employeeCode: " ", password: " " }; // red borders
-        } else if (typeof err === "string") {
-          message = err;
+          fieldErrors = { employeeCode: " ", password: " " };
+        } else if (statusCode === 403) {
+          message = "Your account is inactive. Please contact your admin or HR.";
         } else if (err?.message) {
           message = err.message;
         }
 
         setErrors({ ...fieldErrors, api: message });
       });
+
+
+
   };
 
   // ────────── Login (biometrics) ──────────
@@ -381,7 +384,7 @@ export default function LoginScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                 onPress={() => navigation.navigate("ForgotPassword")}                >
+                  onPress={() => navigation.navigate("ForgotPassword")}                >
                   <Text style={dynamicStyles.optionText}>Forgot Password?</Text>
                 </TouchableOpacity>
               </View>

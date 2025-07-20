@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1023583131119",
+    "project_id": "mgihr-ee144",
+    "storage_bucket": "mgihr-ee144.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1023583131119:android:c784491ff1c413092d921a",
+        "android_client_info": {
+          "package_name": "com.morgantigcc.hr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9f5HS221hBqM9_SixSoaO4DQbTbTrxBk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

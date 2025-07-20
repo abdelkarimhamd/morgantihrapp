@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   createMaterialTopTabNavigator,
 } from '@react-navigation/material-top-tabs';
@@ -8,10 +8,12 @@ import {
   Text,
   StyleSheet,
   Dimensions,
+  Alert,
+  TouchableOpacity,
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { LinearGradient } from 'expo-linear-gradient';
-
+import { useNavigation } from '@react-navigation/native';
 
 import api from '../../../services/api';
 import ProfileTab from './ProfileTab';
@@ -19,17 +21,19 @@ import AssetsTab from './AssetsTab';
 import FamilyTab from './FamilyTab';
 import InsuranceTab from './InsuranceTab';
 import CertificatesTab from './CertificatesTab';
+// import your logout action
+import { logout } from '../../../features/auth/authSlice';
 
 const Tab = createMaterialTopTabNavigator();
 const { width } = Dimensions.get('window');
 
-// Example colors from your palette
 const COLORS = {
   green: '#74933c',
-  lightBlue: '#248bbc',
-  darkBlue: '#1f3d7c',
+  lightBlue: '#1f3d7c',
+  darkBlue: '#248bbc',
   slateBlue: '#4c6c7c',
   tealBlue: '#1c6c7c',
+  danger: '#e53935',
 };
 
 export default function ProfileScreen() {
@@ -37,8 +41,9 @@ export default function ProfileScreen() {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // example user from Redux
   const currentUser = useSelector((state) => state.auth.user);
+  const dispatch = useDispatch();
+  const navigation = useNavigation();
 
   useEffect(() => {
     fetchUserData();
@@ -52,13 +57,43 @@ export default function ProfileScreen() {
         `/assets/employee/${currentUser?.employee_code}`
       );
       setUser(userRes.data);
-      console.log(userRes.data);
-      
       setAssets(assetsRes.data);
     } catch (err) {
       console.error('Failed to fetch profile data', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to permanently delete your account? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, Delete",
+          style: "destructive",
+          onPress: confirmDeleteAccount,
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteAccount = async () => {
+    try {
+      await api.delete(`/deleteacount/${currentUser?.id}`);
+      Alert.alert("Account Deleted", "Your account has been removed.");
+      // Log out the user
+      dispatch(logout());
+      // Or navigate to Login screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Login" }],
+      });
+    } catch (err) {
+      console.error("Failed to delete account:", err);
+      Alert.alert("Error", "Failed to delete account. Please try again later.");
     }
   };
 
@@ -70,7 +105,6 @@ export default function ProfileScreen() {
     );
   }
 
-  // Fallback if no user
   if (!user) {
     return (
       <View style={styles.centered}>
@@ -81,42 +115,33 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ====== HEADER SECTION ====== */}
+      {/* ===== HEADER SECTION ===== */}
       <LinearGradient
         colors={[COLORS.lightBlue, COLORS.darkBlue]}
         style={styles.headerGradient}
       >
-        {/* USER INITIALS */}
         <View style={styles.avatarWrapper}>
           <Text style={styles.avatarText}>
             {user.name?.[0] ?? '?'}
           </Text>
         </View>
 
-        {/* USER DETAILS */}
         <View style={styles.infoWrapper}>
           <Text style={styles.nameText}>{user.name}</Text>
-          <Text style={styles.roleText}>{user.role}</Text>
+          {/* <Text style={styles.roleText}>{ user.role=='hr_admin'? 'Admin':user.role  }</Text> */}
           <Text style={styles.metaText}>
             {user.position} • {user.site}
           </Text>
         </View>
       </LinearGradient>
 
-      {/* ====== TABS ====== */}
+      {/* ===== TABS ===== */}
       <View style={styles.tabContainer}>
         <Tab.Navigator
           screenOptions={{
-            tabBarIndicatorStyle: {
-              backgroundColor: COLORS.green, // indicator = #74933c
-              height: 3,
-            },
-            tabBarLabelStyle: {
-              fontSize: 13,
-              fontWeight: '600',
-              textTransform: 'none',
-            },
-            tabBarActiveTintColor: COLORS.darkBlue, // for active label color
+            tabBarIndicatorStyle: { backgroundColor: COLORS.green, height: 3 },
+            tabBarLabelStyle: { fontSize: 13, fontWeight: '600', textTransform: 'none' },
+            tabBarActiveTintColor: COLORS.darkBlue,
             tabBarScrollEnabled: true,
           }}
         >
@@ -130,22 +155,22 @@ export default function ProfileScreen() {
             {() => <FamilyTab familyMembers={user.family_members || []} />}
           </Tab.Screen>
           <Tab.Screen name="Insurance">
-            {() => (
-              <InsuranceTab assignedPolicies={user.assigned_policies || []} />
-            )}
+            {() => <InsuranceTab assignedPolicies={user.assigned_policies || []} />}
           </Tab.Screen>
           <Tab.Screen name="Certificates">
-            {() => (
-              <CertificatesTab certificates={user.certificates || []} />
-            )}
+            {() => <CertificatesTab certificates={user.certificates || []} />}
           </Tab.Screen>
         </Tab.Navigator>
       </View>
+
+      {/* ===== Delete Account Button ===== */}
+      <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
+        <Text style={styles.deleteBtnText}>Delete Account</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
-// ----------------- STYLES ----------------- //
 const AVATAR_SIZE = 90;
 
 const styles = StyleSheet.create({
@@ -161,8 +186,6 @@ const styles = StyleSheet.create({
   noUserText: {
     fontSize: 16,
   },
-
-  // HEADER
   headerGradient: {
     width: '100%',
     height: 180,
@@ -174,16 +197,13 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: '#4c6c7c', // #4c6c7c from your palette
+    backgroundColor: '#4c6c7c',
     justifyContent: 'center',
     alignItems: 'center',
-
-    // iOS shadow
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 3,
-    // Android
     elevation: 3,
     marginBottom: 8,
   },
@@ -211,9 +231,19 @@ const styles = StyleSheet.create({
     color: '#eee',
     marginTop: 2,
   },
-
-  // TABS
   tabContainer: {
     flex: 1,
+  },
+  deleteBtn: {
+    backgroundColor: COLORS.danger,
+    padding: 16,
+    margin: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  deleteBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

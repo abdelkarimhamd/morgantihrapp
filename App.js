@@ -27,12 +27,38 @@ import { AuthProvider } from './context/AuthContext';
 import ForgotPasswordScreen from './app/screens/RestPassword/ForgotPasswordScreen';
 import OTPScreen from './app/screens/RestPassword/OTPScreen';
 import ChangePasswordScreen from './app/screens/RestPassword/ChangePasswordScreen';
+import HRVacationRequestsScreen from './app/screens/Admin/HRVacationRequestsScreen';
+import HrAdminFinalApprovalsScreen from './app/screens/Admin/HrAdminFinalApprovalsScreen';
+import HRAdminMyRequestsScreen from './app/screens/Admin/HRAdminMyRequestsScreen';
+import ExitEntryRequestHRScreen from './app/screens/Admin/ExitEntryRequestHRScreen';
+import HRAdminExitEntryRequestsScreen from './app/screens/Admin/HRAdminExitEntryRequestsScreen';
 
 const Stack = createNativeStackNavigator();
 
-/**
- * Register for push notifications (Expo).
- */
+
+async function requestLocationPermission() {
+  const { status } = await Location.getForegroundPermissionsAsync();
+  if (status === 'granted') return true;
+
+  const { status: asked } = await Location.requestForegroundPermissionsAsync();
+  if (asked !== 'granted') {
+    alert('Location permission is required for site-based features.');
+    return false;
+  }
+  return true;
+}
+
+function LocationPermissionManager() {
+  const user = useSelector((state) => state.auth.user);
+
+  useEffect(() => {
+    if (!user) return;                    
+    requestLocationPermission();
+  }, [user]);
+
+  return null;
+}
+
 async function registerForPushNotificationsAsync() {
   let token;
   if (Platform.OS === 'android') {
@@ -61,21 +87,21 @@ async function registerForPushNotificationsAsync() {
   return token;
 }
 
-/**
- * Listen for incoming notifications (optional).
- */
+
 function useNotificationListener() {
   useEffect(() => {
     const subscription = Notifications.addNotificationReceivedListener((notification) => {
-      // Handle notification if desired
+      // Handle the notification
+      console.log('Notification received:', notification);
+      // You can navigate to a specific screen or show a custom alert here
+      // For example, you can navigate to a specific screen:
+      // navigation.navigate('NotificationScreen', { notification });
     });
     return () => subscription.remove();
   }, []);
 }
 
-/**
- * Manages push-token registration after user logs in.
- */
+
 function PushTokenManager() {
   const user = useSelector((state) => state.auth.user);
 
@@ -108,6 +134,7 @@ export default function App() {
     <AuthProvider>
       <Provider store={store}>
         <PushTokenManager />
+        <LocationPermissionManager />
         <NavigationContainer>
           <Stack.Navigator initialRouteName="Welcome">
             {/* Hide header on Welcome & Login */}
@@ -133,11 +160,36 @@ export default function App() {
               name="ChangePassword"
               component={ChangePasswordScreen}
               options={{ headerShown: false }} />
-            {/* Some screens use the default header (or custom if you prefer) */}
+      
             <Stack.Screen
               name="CreateVacationRequest"
               component={VacationRequestForm}
               options={{ title: 'CreateVacationRequest', headerShown: true }}
+            />
+            <Stack.Screen
+              name="HRVacationRequestsScreen"
+              component={HRVacationRequestsScreen}
+              options={{ title: 'HRVacationRequestsScreen', headerShown: true }}
+            />
+            <Stack.Screen
+              name="HRAdminExitEntryRequestsScreen"
+              component={HRAdminExitEntryRequestsScreen}
+              options={{ title: 'HRAdminExitEntryRequestsScreen', headerShown: true }}
+            />
+            <Stack.Screen
+              name="ExitEntryRequestHRScreen"
+              component={ExitEntryRequestHRScreen}
+              options={{ title: 'ExitEntryRequestHRScreen', headerShown: true }}
+            />
+            <Stack.Screen
+              name="HRAdminMyRequestsScreen"
+              component={HRAdminMyRequestsScreen}
+              options={{ title: 'HRAdminMyRequestsScreen', headerShown: true }}
+            />
+            <Stack.Screen
+              name="HrAdminFinalApprovalsScreen"
+              component={HrAdminFinalApprovalsScreen}
+              options={{ title: 'HrAdminFinalApprovalsScreen', headerShown: true }}
             />
             <Stack.Screen
               name="EmployeeExitEntryRequest"
@@ -174,11 +226,6 @@ export default function App() {
               component={ExitEntryRequestDetailsScreen}
               options={{ headerShown: false }}
             />
-
-            {/*
-            IMPORTANT:
-            For the Drawer screen, we hide the header so the Drawer can show its own.
-          */}
             <Stack.Screen
               name="Drawer"
               component={AppDrawer}

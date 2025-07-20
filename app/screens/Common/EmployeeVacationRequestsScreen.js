@@ -32,7 +32,8 @@ export default function EmployeeVacationRequestsScreen({ navigation }) {
   const [vacationRequests, setVacationRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 const vacationBalance = useSelector((state) => state.auth.user?.vacation_balance || 0);
-
+ const role = useSelector((state) => state.auth.user?.role);
+const apiRole = role === 'hr_admin' ? 'admin' : role;
   const [errorMsg, setErrorMsg] = useState('');
 const [summaryStats, setSummaryStats] = useState({
   daysLeft: 0,
@@ -56,17 +57,27 @@ const [summaryStats, setSummaryStats] = useState({
   // View details modal
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
-
+function getRoutePrefixByRole() {
+  const role = useSelector((state) => state.auth.user?.role);
+  if (role === 'hr_admin') return '/admin';
+  if (role === 'manager') return '/manager';
+  if (role === 'finance') return '/finance';
+  if (role === 'ceo') return '/ceo';
+  if (role === 'finance_coordinator') return '/finance_coordinator';
+  return '/employee';
+}
+  const apiPrefix = getRoutePrefixByRole();
   useEffect(() => {
     fetchVacationRequests();
   }, [page, rowsPerPage]);
- const role = useSelector((state) => state.auth.user?.role);
 
 const fetchVacationRequests = async (start = startFilter, end = endFilter) => {
   setLoading(true);
+  console.log(`Fetching vacation requests for ${apiRole} with filters: start=${start}, end=${end}`);
+  
   setErrorMsg('');
   try {
-    const response = await api.get(`/${role}/vacation-requests`, {
+    const response = await api.get(`${apiPrefix}/vacation-requests2/index`, {
       params: {
         page,
         per_page: rowsPerPage,
@@ -74,6 +85,7 @@ const fetchVacationRequests = async (start = startFilter, end = endFilter) => {
         end_date: end || undefined,
       },
     });
+console.log('Vacation Requests Response:', response.data);
 
     const allRequests = response.data.data || response.data;
     setVacationRequests(allRequests);
@@ -95,6 +107,8 @@ const fetchVacationRequests = async (start = startFilter, end = endFilter) => {
     });
 
   } catch (error) {
+  console.log(`Fetching vacation requests for ${apiRole} with filters: start=${start}, end=${end}`);
+
     console.error('Failed to fetch vacation requests:', error);
     setErrorMsg('Could not load your vacation requests. Please try again later.');
   } finally {
@@ -117,17 +131,18 @@ const fetchVacationRequests = async (start = startFilter, end = endFilter) => {
   };
 
   const confirmCancelVacation = async () => {
-    if (!cancelId) return;
-    try {
-      await api.patch(`/employee/vacation-requests/${cancelId}`, { status: 'Cancelled' });
-      fetchVacationRequests();
-      setCancelModalVisible(false);
-      setCancelId(null);
-    } catch (err) {
-      console.error('Failed to cancel request:', err);
-      Alert.alert('Error', 'Could not cancel the request. Please try again.');
-    }
-  };
+  if (!cancelId) return;
+  try {
+    await api.patch(`/${apiRole}/vacation-requests/${cancelId}`, { status: 'Cancelled' });
+    fetchVacationRequests();
+    setCancelModalVisible(false);
+    setCancelId(null);
+  } catch (err) {
+    console.error('Failed to cancel request:', err);
+    Alert.alert('Error', 'Could not cancel the request. Please try again.');
+  }
+};
+
 
   // Details modal
   const onViewDetails = (req) => {

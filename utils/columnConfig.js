@@ -1,30 +1,52 @@
 import { MaterialIcons } from '@expo/vector-icons';
 
-const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+export const fmtDate = (d, language) => {
+  if (!d) return 'N/A';
 
+  // Use device language if none supplied
+  let locale = language || Intl.DateTimeFormat().resolvedOptions().locale;
+
+  // Ensure the locale string ends with “-u-ca-gregory”
+  locale = /-u-/.test(locale)
+    ? locale.replace(/-u-.*/, '-u-ca-gregory')
+    : `${locale}-u-ca-gregory`;
+
+  return new Intl.DateTimeFormat(locale, {
+    year:  'numeric',
+    month: 'short',   // e.g. Jul
+    day:   'numeric',
+  }).format(new Date(d));
+};
 const yesNo = (v) => (v ? 'Yes' : 'No');
 
 export const getFinalStatus = (r) => {
-  // direct manager status lives in r.status
-  const main = r.status?.toUpperCase();
-
-  // stitch all stages together
+  // Collect all possible status stages in order
   const chain = [
     r.status,
     r.hr_status,
     r.finance_coordinator_status,
     r.finance_status,
     r.ceo_status,
-  ].filter((v) => v != null);
+  ].filter(Boolean); // remove null/undefined/empty
 
-  const all = chain.map((v) => v.toUpperCase());
+  if (chain.length === 0) return 'PENDING';
 
-  if (all.length === 0) return 'PENDING';
-  if (all.some((v) => v === 'REJECTED')) return 'REJECTED';
-  if (all.every((v) => v === 'APPROVED')) return 'APPROVED';
-  return main || 'PENDING';
+  // Normalize to uppercase for checks
+  const all = chain.map((v) => (typeof v === 'string' ? v.toUpperCase() : v));
+
+  // If any stage is rejected, whole chain is rejected
+  if (all.includes('REJECTED')) return 'REJECTED';
+
+  // If all are approved, final status is approved
+  if (all.length > 0 && all.every((v) => v === 'APPROVED')) return 'APPROVED';
+
+  // If any stage is pending (not approved or rejected), consider as pending
+  if (all.includes('PENDING')) return 'PENDING';
+
+  // Fallback for any other custom status
+  return all[all.length - 1] || 'PENDING'; // Use the last status if present, else Pending
 };
+
 
 const managerSt = (r) => r.status?.toUpperCase() ?? 'PENDING';
 const hrSt = (r) => r.hr_status?.toUpperCase() ?? 'PENDING';

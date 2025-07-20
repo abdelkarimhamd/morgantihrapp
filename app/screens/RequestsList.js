@@ -741,6 +741,10 @@ const canTakeAction =
           <MaterialIcons name={iconName} size={18} color={COLORS.primary} />
         </View>
         <Text style={styles.cardId}>#{request.id}</Text>
+        <View >
+          <Text style={styles.cardType}>{requestType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</Text>
+        <Text style={styles.cardName}>{request.user.name}</Text>
+        </View>
         <View style={[styles.statusBadge, { backgroundColor: statusColor + '22' }]}>
           <Text style={[styles.statusText, { color: statusColor }]}>{status}</Text>
         </View>
@@ -969,6 +973,12 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   cardId: {
+    color: COLORS.textLight,
+    fontSize: 13,
+    fontWeight: '500',
+    marginRight: 10,
+  },
+  cardName: {
     color: COLORS.textLight,
     fontSize: 13,
     fontWeight: '500',

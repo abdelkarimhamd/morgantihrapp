@@ -2,6 +2,7 @@
   "expo": {
     "name": "MorgantiHR",
     "slug": "morganti-hr",
+    "scheme": "morgantihr",
     "version": "1.0.0",
     "orientation": "portrait",
     "owner": "ahamedhr",
@@ -12,29 +13,44 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "userInterfaceStyle": "light",
 
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
 
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.ahamedhr.morgantihr",     
-      "infoPlist": {
-        "NSFaceIDUsageDescription": "Allow Face ID for quick login."
-      }
-    },
+"ios": {
+  "supportsTablet": true,
+  "bundleIdentifier": "com.morgantigcc.hr",
+"infoPlist": {
+  "NSFaceIDUsageDescription": "Allow Face ID for quick login.",
+  "NSCameraUsageDescription": "Morganti HR uses the camera to scan documents and capture photos for HR-related requests.",
+  "ITSAppUsesNonExemptEncryption": false,
+  "NSLocationWhenInUseUsageDescription":
+    "Allow Morganti HR to access your location while you use the app so we can suggest nearby projects and auto-fill addresses."
+}
+
+},
 
     "android": {
-      "package": "com.ahamedhr.morgantihr",            
+      "package": "com.morgantigcc.hr",
+
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+
       "permissions": [
         "CAMERA",
-        "POST_NOTIFICATIONS"                              
+        "POST_NOTIFICATIONS",
+
+       
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+       
+        ,"ACCESS_BACKGROUND_LOCATION"
+     
       ],
-      "googleServicesFile": "./google-services.json",     
+
+      "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true
     },
 
@@ -44,12 +60,23 @@
 
     "plugins": [
       "expo-secure-store",
+
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",      
-          "color": "#1f3d7c",                            
-          "sounds": ["default"]                         
+          "icon": "./assets/notification-icon.png",
+          "color": "#1f3d7c",
+          "sounds": []
+        }
+      ],
+
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "modular_headers": true
+          }
         }
       ]
     ],

@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../../services/api';
 import EmployeeVacationRequestsScreen from '../Common/EmployeeVacationRequestsScreen';
 import { Linking } from 'react-native';
+import { useSelector } from 'react-redux';
 
 /**
  * Manager‑facing screen that lets a line manager:
@@ -79,12 +80,23 @@ function TeamRequestsList() {
   useEffect(() => {
     fetchRequests();
   }, []);
+  const apiPrefix = getRoutePrefixByRole();
 
+  function getRoutePrefixByRole() {
+    const role = useSelector((state) => state.auth.user?.role);
+    if (role === 'hr_admin') return '/admin';
+    if (role === 'manager') return '/manager';
+    if (role === 'finance') return '/finance';
+    if (role === 'ceo') return '/ceo';
+    if (role === 'finance_coordinator') return '/finance_coordinator';
+    return '/employee';
+  }
+console.log('API Prefix:', apiPrefix);
   const fetchRequests = async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get('/manager/vacation-requests');
+      const res = await api.get(`${apiPrefix}/vacation-requests`);
       setRequests(res.data || []);
     } catch (err) {
       console.error('Failed to load team requests', err);

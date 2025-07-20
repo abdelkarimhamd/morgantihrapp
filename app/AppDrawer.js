@@ -28,12 +28,13 @@ import RequestsOverview from './screens/RequestsOverview';
 import HrAdminFinalApprovalsScreen from './screens/Admin/HrAdminFinalApprovalsScreen';
 import { logoutUser } from '../store/actions/authActions';
 import NotificationHeader from './components/NotificationHeader';
+import VactionsScreenHRScreen from './screens/Admin/VactionsScreenHRScreen';
 
 const { width } = Dimensions.get('window');
 const isLargeScreen = width >= 768;
 const isIOS = Platform.OS === 'ios';
 const Drawer = createDrawerNavigator();
-const ROLES_CAN_VIEW_ASSIGNED = ['manager', 'hr_admin', 'finance'];
+const ROLES_CAN_VIEW_ASSIGNED = ['manager', 'hr_admin', 'finance','ceo', 'finance_coordinator'];
 
 function LogoutScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -85,7 +86,18 @@ export default function AppDrawer() {
   const dynamicStyles = getDynamicStyles(isLargeScreen, isIOS);
   const [hasPendingRequests, setHasPendingRequests] = useState(false);
   const [hasPendingVacations, setHasPendingVacations] = useState(false);
+  const apiPrefix = getRoutePrefixByRole();
 
+  function getRoutePrefixByRole() {
+    const role = useSelector((state) => state.auth.user?.role);
+    if (role === 'hr_admin') return '/admin';
+    if (role === 'manager') return '/manager';
+    if (role === 'finance') return '/finance';
+    if (role === 'ceo') return '/ceo';
+    if (role === 'finance_coordinator') return '/finance_coordinator';
+    return '/employee';
+  }
+console.log('API Prefix:', apiPrefix);
   useEffect(() => {
     if (ROLES_CAN_VIEW_ASSIGNED.includes(role)) {
       api.get('/hr-requests/assigned-pending-breakdown')
@@ -95,9 +107,9 @@ export default function AppDrawer() {
           setHasPendingRequests(total > 0);
         })
         .catch(err => console.warn('Pending breakdown error', err));
-const adjustedRole = role === 'hr_admin' ? 'admin' : role;
+      const adjustedRole = role === 'hr_admin' ? 'admin' : role;
 
-api.get(`/${adjustedRole}/vacation-requests/pending-count`)
+      api.get(`${apiPrefix}/vacation-requests/pending-count`)
         .then(res => {
           const count = res.data?.count || 0;
           setHasPendingVacations(count > 0);
@@ -105,6 +117,7 @@ api.get(`/${adjustedRole}/vacation-requests/pending-count`)
         .catch(err => console.warn('Pending vacations error', err));
     }
   }, [role]);
+console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pending Vacations:', hasPendingVacations);
 
   const getScreenOptions = ({ navigation, route }) => ({
     header: () => <NotificationHeader navigation={navigation} title="HR System" />,
@@ -135,8 +148,8 @@ api.get(`/${adjustedRole}/vacation-requests/pending-count`)
         <>
           <Drawer.Screen name="AdminDashboard" component={AdminDashboard} options={{ title: 'Admin Dashboard' }} />
           <Drawer.Screen
-            name="HrAdminFinalApprovalsScreen"
-            component={HrAdminFinalApprovalsScreen}
+            name="VactionsScreenHRScreen"
+            component={VactionsScreenHRScreen}
             options={{
               title: 'Vacations',
               drawerLabel: () => (
@@ -166,6 +179,7 @@ api.get(`/${adjustedRole}/vacation-requests/pending-count`)
           />
         </>
       )}
+
 
       {role === 'manager' && (
         <>
@@ -202,8 +216,85 @@ api.get(`/${adjustedRole}/vacation-requests/pending-count`)
           />
         </>
       )}
+      {role === 'ceo' && (
+        <>
+          <Drawer.Screen name="ManagerDashboard" component={ManagerDashboard} options={{ title: 'Manager Dashboard' }} />
+          <Drawer.Screen
+            name="VacationRequests"
+            component={ManagerVacationRequestsScreen}
+            options={{
+              title: 'Vacations',
+              drawerLabel: () => (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Vacations</Text>
+                  {hasPendingVacations && (
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                  )}
+                </View>
+              ),
+            }}
+          />
+          <Drawer.Screen
+            name="RequestsOverview"
+            component={RequestsOverview}
+            options={{
+              title: 'Request Overview',
+              drawerLabel: () => (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Request Overview</Text>
+                  {hasPendingRequests && (
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                  )}
+                </View>
+              ),
+            }}
+          />
+        </>
+      )}
+      {role === 'finance' && (
+        <>
+          <Drawer.Screen name="ManagerDashboard" component={ManagerDashboard} options={{ title: 'Manager Dashboard' }} />
+          <Drawer.Screen
+            name="VacationRequests"
+            component={ManagerVacationRequestsScreen}
+            options={{
+              title: 'Vacations',
+              drawerLabel: () => (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Vacations</Text>
+                  {hasPendingVacations && (
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                  )}
+                </View>
+              ),
+            }}
+          />
+          <Drawer.Screen
+            name="RequestsOverview"
+            component={RequestsOverview}
+            options={{
+              title: 'Request Overview',
+              drawerLabel: () => (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Request Overview</Text>
+                  {hasPendingRequests && (
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                  )}
+                </View>
+              ),
+            }}
+          />
+        </>
+      )}
 
       {role === 'employee' && (
+        <>
+          <Drawer.Screen name="EmployeeDashboard" component={EmployeeDashboard} options={{ title: 'Dashboard' }} />
+          <Drawer.Screen name="RequestsOverview" component={RequestsOverview} options={{ title: 'Request Overview' }} />
+          <Drawer.Screen name="EmployeeAllRequestsTabs" component={EmployeeAllRequestsTabs} options={{ title: 'My Requests' }} />
+        </>
+      )}
+      {role === 'finance_coordinator' && (
         <>
           <Drawer.Screen name="EmployeeDashboard" component={EmployeeDashboard} options={{ title: 'Dashboard' }} />
           <Drawer.Screen name="RequestsOverview" component={RequestsOverview} options={{ title: 'Request Overview' }} />

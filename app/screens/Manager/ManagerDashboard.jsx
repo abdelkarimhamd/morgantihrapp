@@ -107,7 +107,17 @@ export default function ManagerDashboard() {
   const [subReqs, setSubReqs] = useState([]);
   const [holidays, setHolidays] = useState([]);
   const [anns, setAnns] = useState([]);
+  const apiPrefix = getRoutePrefixByRole();
 
+  function getRoutePrefixByRole() {
+    const role = useSelector((state) => state.auth.user?.role);
+    if (role === 'hr_admin') return '/admin';
+    if (role === 'manager') return '/manager';
+    if (role === 'finance') return '/finance';
+    if (role === 'ceo') return '/ceo';
+    if (role === 'finance_coordinator') return '/finance_coordinator';
+    return '/employee';
+  }
   // UI states
   const [openSections, setOpenSections] = useState({
     balances: true,
@@ -191,9 +201,9 @@ export default function ManagerDashboard() {
     setLoading(true);
     try {
       const [dashboard, hol, ann] = await Promise.all([
-        api.get('/manager/dashboard'),
-        api.get('/holidays'),
-        api.get('/announcements'),
+        api.get(`${apiPrefix}/dashboard`),
+        api.get(`/holidays`),
+        api.get(`/announcements`),
       ]);
       const data = dashboard.data;
       setManager(data.manager || {});
@@ -271,7 +281,7 @@ export default function ManagerDashboard() {
           longitude: location?.longitude,
         }),
       };
-      const res = await api.post('/attendances', payload);
+      const res = await api.post(`${apiPrefix}/attendances`, payload);
       if (res.data?.id) {
         setLastPunchType(type);
         setAttendanceMsg(`${type} successful at ${moment().format('hh:mm A')}.`);

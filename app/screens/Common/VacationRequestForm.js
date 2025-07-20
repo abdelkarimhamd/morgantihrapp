@@ -16,6 +16,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import api from '../../../services/api';
+import { useSelector } from 'react-redux';
 
 // ------------------ Unified Color Theme ------------------ //
 const COLORS = {
@@ -131,8 +132,21 @@ export default function VacationRequestForm({ navigation }) {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const apiPrefix = getRoutePrefixByRole();
+
+  function getRoutePrefixByRole() {
+    const role = useSelector((state) => state.auth.user?.role);
+    if (role === 'hr_admin') return '/admin';
+    if (role === 'manager') return '/manager';
+    if (role === 'finance') return '/finance';
+    if (role === 'ceo') return '/ceo';
+    if (role === 'finance_coordinator') return '/finance_coordinator';
+    return '/employee';
+  }
+console.log('API Prefix:', apiPrefix);
 
   useEffect(() => {
+
     fetchInitialData();
   }, []);
 
@@ -161,31 +175,31 @@ export default function VacationRequestForm({ navigation }) {
 
   async function fetchPendingRequests() {
     try {
-      const { data } = await api.get('/employee/vacation-requests2/index');
+      const { data } = await api.get(`${apiPrefix}/vacation-requests2/index`);
       setHasPendingRequest((data || []).some(req => req.status === 'pending' || req.hr_status === 'pending'));
     } catch (err) {
       console.error('Error fetching pending requests:', err);
     }
   }
-const getMaxPossibleDays = (startDate, endDate) => {
-  if (formData.leave_type !== 'Annual') return baseBalance;
+  const getMaxPossibleDays = (startDate, endDate) => {
+    if (formData.leave_type !== 'Annual') return baseBalance;
 
-  const dailyRate = getDailyAccrualRate(contractType, formData.leave_type);
-  const today = new Date();
-  const accrualEndDate = endDate ? new Date(endDate) : new Date(today.getFullYear(), 11, 31);
+    const dailyRate = getDailyAccrualRate(contractType, formData.leave_type);
+    const today = new Date();
+    const accrualEndDate = endDate ? new Date(endDate) : new Date(today.getFullYear(), 11, 31);
 
-  const daysFromNow = Math.max(
-    0,
-    Math.floor((accrualEndDate - today) / (1000 * 60 * 60 * 24))
-  );
+    const daysFromNow = Math.max(
+      0,
+      Math.floor((accrualEndDate - today) / (1000 * 60 * 60 * 24))
+    );
 
-  return Math.floor(baseBalance + (dailyRate * daysFromNow));
-};
+    return Math.floor(baseBalance + (dailyRate * daysFromNow));
+  };
 
 
   const calcDays = (start, end) => {
     if (!start || !end || end < start) return 0;
-    const diff = new Date(end).setHours(0,0,0,0) - new Date(start).setHours(0,0,0,0);
+    const diff = new Date(end).setHours(0, 0, 0, 0) - new Date(start).setHours(0, 0, 0, 0);
     return Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
   };
 
@@ -195,7 +209,7 @@ const getMaxPossibleDays = (startDate, endDate) => {
       handleFormChange(name, selectedDate);
     }
   };
-  
+
   const handleFormChange = (name, value) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
@@ -204,7 +218,7 @@ const getMaxPossibleDays = (startDate, endDate) => {
       const match = vacationBalances.find(bal => bal.leave_type === value);
       setBaseBalance(parseFloat(match?.balance) || 0);
     }
-    
+
     if (name === 'start_date' || name === 'end_date') {
       setRequestedDays(calcDays(newFormData.start_date, newFormData.end_date));
     }
@@ -212,13 +226,13 @@ const getMaxPossibleDays = (startDate, endDate) => {
 
   const suggestEndDate = () => {
     if (!formData.start_date) return;
-const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
+    const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
 
     const end = new Date(formData.start_date);
     end.setDate(end.getDate() + (maxDays - 1));
     handleFormChange('end_date', end);
   };
-  
+
   const pickFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
     if (!result.canceled) setFile(result.assets[0]);
@@ -229,8 +243,8 @@ const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
       Alert.alert('Pending Request', 'You already have a pending vacation request.');
       return;
     }
-    
-   const maxPossible = getMaxPossibleDays(formData.start_date, formData.end_date);
+
+    const maxPossible = getMaxPossibleDays(formData.start_date, formData.end_date);
 
     if (!['Emergency', 'Unpaid'].includes(formData.leave_type) && requestedDays > maxPossible) {
       Alert.alert('Insufficient Balance', `Your request for ${requestedDays} days exceeds the maximum of ${maxPossible} available days.`);
@@ -240,21 +254,21 @@ const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
     setLoading(true);
     setError('');
     setValidationErrors([]);
-    
+
     const formDataObj = new FormData();
     Object.keys(formData).forEach(key => {
-        if (key === 'start_date' || key === 'end_date') {
-            if (formData[key]) formDataObj.append(key, new Date(formData[key]).toISOString().split('T')[0]);
-        } else if (key === 'leave_type') {
-            formDataObj.append(key, leaveTypeApiMapping[formData[key]] || formData[key]);
-        } else {
-            formDataObj.append(key, formData[key]);
-        }
+      if (key === 'start_date' || key === 'end_date') {
+        if (formData[key]) formDataObj.append(key, new Date(formData[key]).toISOString().split('T')[0]);
+      } else if (key === 'leave_type') {
+        formDataObj.append(key, leaveTypeApiMapping[formData[key]] || formData[key]);
+      } else {
+        formDataObj.append(key, formData[key]);
+      }
     });
     if (file) formDataObj.append('attachment', { uri: file.uri, name: file.name, type: file.mimeType });
 
     try {
-      await api.post('/employee/vacation-requests', formDataObj, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.post(`${apiPrefix}/vacation-requests`, formDataObj, { headers: { 'Content-Type': 'multipart/form-data' } });
       setShowSuccessModal(true);
     } catch (err) {
       console.error('Error creating request:', err.response?.data || err);
@@ -268,7 +282,7 @@ const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
     }
   };
 
-const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
+  const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
 
 
   const leaveTypes = getLeaveTypesForGender(gender);
@@ -295,18 +309,18 @@ const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
         )}
 
         <View style={styles.card}>
-            <View style={styles.cardHeader}>
-                <Icon name="chart-box-outline" size={24} color={COLORS.navy} />
-                <Text style={styles.cardTitle}>Balance Summary</Text>
+          <View style={styles.cardHeader}>
+            <Icon name="chart-box-outline" size={24} color={COLORS.navy} />
+            <Text style={styles.cardTitle}>Balance Summary</Text>
+          </View>
+          {loadingBalances ? <ActivityIndicator color={COLORS.navy} /> : (
+            <View style={styles.summaryGrid}>
+              <View style={styles.summaryItem}><Text style={styles.summaryLabel}>Leave Type</Text><Text style={styles.summaryValue}>{formData.leave_type}</Text></View>
+              <View style={styles.summaryItem}><Text style={styles.summaryLabel}>Base Balance</Text><Text style={styles.summaryValue}>{baseBalance.toFixed(2)} days</Text></View>
+              <View style={styles.summaryItem}><Text style={styles.summaryLabel}>Requested</Text><Text style={[styles.summaryValue, { color: COLORS.forest }]}>{requestedDays} days</Text></View>
+              <View style={styles.summaryItem}><Text style={styles.summaryLabel}>Max Available</Text><Text style={[styles.summaryValue, { color: COLORS.navy, fontWeight: 'bold' }]}>{maxDays} days</Text></View>
             </View>
-            {loadingBalances ? <ActivityIndicator color={COLORS.navy} /> : (
-                <View style={styles.summaryGrid}>
-                    <View style={styles.summaryItem}><Text style={styles.summaryLabel}>Leave Type</Text><Text style={styles.summaryValue}>{formData.leave_type}</Text></View>
-                    <View style={styles.summaryItem}><Text style={styles.summaryLabel}>Base Balance</Text><Text style={styles.summaryValue}>{baseBalance.toFixed(2)} days</Text></View>
-                    <View style={styles.summaryItem}><Text style={styles.summaryLabel}>Requested</Text><Text style={[styles.summaryValue, {color: COLORS.forest}]}>{requestedDays} days</Text></View>
-                    <View style={styles.summaryItem}><Text style={styles.summaryLabel}>Max Available</Text><Text style={[styles.summaryValue, {color: COLORS.navy, fontWeight: 'bold'}]}>{maxDays} days</Text></View>
-                </View>
-            )}
+          )}
         </View>
 
         <View style={styles.card}>
@@ -314,7 +328,7 @@ const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
             <Icon name="calendar-edit" size={24} color={COLORS.navy} />
             <Text style={styles.cardTitle}>Leave Details</Text>
           </View>
-          
+
           <Text style={styles.label}>Leave Type</Text>
           <View style={styles.leaveTypeGrid}>
             {leaveTypes.map(type => (
@@ -340,9 +354,9 @@ const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
               </TouchableOpacity>
             </View>
           </View>
-          {showStartPicker && <DateTimePicker mode="date" value={formData.start_date || new Date()} onChange={(e,d) => handleDateChange('start_date', e, d)} minimumDate={new Date()} />}
-          {showEndPicker && <DateTimePicker mode="date" value={formData.end_date || new Date()} onChange={(e,d) => handleDateChange('end_date', e, d)} minimumDate={formData.start_date || new Date()} />}
-          
+          {showStartPicker && <DateTimePicker mode="date" value={formData.start_date || new Date()} onChange={(e, d) => handleDateChange('start_date', e, d)} minimumDate={new Date()} />}
+          {showEndPicker && <DateTimePicker mode="date" value={formData.end_date || new Date()} onChange={(e, d) => handleDateChange('end_date', e, d)} minimumDate={formData.start_date || new Date()} />}
+
           <TouchableOpacity style={styles.suggestBtn} onPress={suggestEndDate}>
             <Icon name="lightbulb-on-outline" size={18} color={COLORS.forest} />
             <Text style={styles.suggestBtnText}>Suggest End Date based on Max Balance</Text>
@@ -358,7 +372,7 @@ const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
           <FloatingLabelInput label="Phone Number" value={formData.phone_number} onChangeText={val => handleFormChange('phone_number', val)} keyboardType="phone-pad" />
           <FloatingLabelInput label="Location in Country" value={formData.location_in_country} onChangeText={val => handleFormChange('location_in_country', val)} />
           <FloatingLabelInput label="Description (Optional)" value={formData.description} onChangeText={val => handleFormChange('description', val)} multiline />
-          
+
           <Text style={[styles.label, { marginTop: 10 }]}>Attachment (Optional)</Text>
           <TouchableOpacity style={styles.uploadBtn} onPress={pickFile}>
             <Icon name="paperclip" size={18} color={COLORS.white} />
@@ -389,7 +403,7 @@ const maxDays = getMaxPossibleDays(formData.start_date, formData.end_date);
             <View style={styles.successIcon}><Icon name="check-circle" size={60} color={COLORS.success} /></View>
             <Text style={styles.modalTitle}>Request Submitted!</Text>
             <Text style={styles.modalText}>Your leave request has been sent for approval.</Text>
-            <TouchableOpacity style={styles.modalButton} onPress={() => {setShowSuccessModal(false); navigation.goBack();}}>
+            <TouchableOpacity style={styles.modalButton} onPress={() => { setShowSuccessModal(false); navigation.goBack(); }}>
               <Text style={styles.modalButtonText}>Done</Text>
             </TouchableOpacity>
           </View>
