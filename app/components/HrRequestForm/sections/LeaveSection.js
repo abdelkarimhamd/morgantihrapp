@@ -186,7 +186,7 @@ const LeaveSection = ({ formValues, setFormValues }) => {
             {f.name}
           </Text>
           <TouchableOpacity onPress={() => removeFile(f.uri)}>
-            <MaterialIcons name="close" size={20} color="#E53935" />
+            <MaterialIcons name="close" size={20} color="#248bbc" />
           </TouchableOpacity>
         </View>
       ))}
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   sectionCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
+    padding: 5,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: '#ddd',
@@ -229,10 +229,10 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 10,
   },
-  required: { color: '#E53935' },
+  required: { color: '#248bbc' },
   errorText: {
     fontSize: 13,
-    color: '#E53935',
+    color: '#248bbc',
     marginBottom: 6,
   },
   leaveTypeGrid: {

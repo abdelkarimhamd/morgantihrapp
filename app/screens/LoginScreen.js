@@ -164,26 +164,28 @@ export default function LoginScreen() {
 
         navigateBasedOnRole(res.user?.role);
       })
-      .catch((err) => {
+.catch((err) => {
         console.log("Login error:", err);
-
         const statusCode = err?.status;
-        let message = "Something went wrong, please try again.";
         let fieldErrors = {};
 
         if (statusCode === 401) {
-          message = "Incorrect employee code or password.";
-          fieldErrors = { employeeCode: " ", password: " " };
+          fieldErrors = { 
+            employeeCode: "Invalid credentials",
+            password: "Invalid credentials" 
+          };
         } else if (statusCode === 403) {
-          message = "Your account is inactive. Please contact your admin or HR.";
-        } else if (err?.message) {
-          message = err.message;
+          fieldErrors = { 
+            api: "Your account is inactive. Please contact your admin or HR." 
+          };
+        } else {
+          fieldErrors = { 
+            api: err?.message || "Something went wrong, please try again." 
+          };
         }
 
-        setErrors({ ...fieldErrors, api: message });
+        setErrors(fieldErrors);
       });
-
-
 
   };
 

@@ -13,11 +13,15 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import DateTimeField from '../DateTimeField';
-
+// #74933c (greenish)
+// #248bbc (blue)
+// #1f3d7c (dark blue)
+// #4c6c7c (gray/blue)
+// #1c6c7c (blueish)
 /* ------------ UI constants ------------ */
 const COLORS = {
-  green: '#2E7D32',
-  dark: '#1B5E20',
+  green: '#74933c',
+  dark: '#1f3d7c',
   grey: '#607D8B',
 };
 
@@ -161,7 +165,7 @@ export default function FinanceClaimSection({ formValues, setFormValues }) {
               <Text style={styles.expTitle}>Expense #{idx + 1}</Text>
               {formValues.financeClaims.length > 1 && (
                 <TouchableOpacity onPress={() => removeRow(idx)}>
-                  <MaterialCommunityIcons name="close" size={20} color="#E53935" />
+                  <MaterialCommunityIcons name="close" size={20} color="#248bbc" />
                 </TouchableOpacity>
               )}
             </View>
@@ -259,7 +263,7 @@ export default function FinanceClaimSection({ formValues, setFormValues }) {
                 <MaterialCommunityIcons
                   name="close"
                   size={18}
-                  color="#E53935"
+                  color="#248bbc"
                   style={{ marginLeft: 'auto' }}
                 />
               )}

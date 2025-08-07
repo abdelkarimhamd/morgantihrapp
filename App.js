@@ -3,8 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider, useSelector } from 'react-redux';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
-
+import * as Device from 'expo-device';
+import { Platform, Alert } from 'react-native';
 import store from './store/store';
 
 // Screens
@@ -32,6 +32,13 @@ import HrAdminFinalApprovalsScreen from './app/screens/Admin/HrAdminFinalApprova
 import HRAdminMyRequestsScreen from './app/screens/Admin/HRAdminMyRequestsScreen';
 import ExitEntryRequestHRScreen from './app/screens/Admin/ExitEntryRequestHRScreen';
 import HRAdminExitEntryRequestsScreen from './app/screens/Admin/HRAdminExitEntryRequestsScreen';
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 const Stack = createNativeStackNavigator();
 
@@ -59,33 +66,50 @@ function LocationPermissionManager() {
   return null;
 }
 
-async function registerForPushNotificationsAsync() {
+
+export async function registerForPushNotificationsAsync() {
   let token;
+
+  // ✅ Check if running on a real device
+  if (!Device.isDevice) {
+    Alert.alert('Push notifications require a physical device!');
+    return null;
+  }
+
+  // ✅ Configure Android notification channel
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
+      importance: Notifications.AndroidImportance.MAX, // highest priority
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+      sound: 'default', // ensure sound plays
     });
   }
 
+  // ✅ Check existing permissions
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
-  // Ask for permissions if not granted
+  // ✅ If not granted → ask for permission
   if (existingStatus !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
 
+  // ✅ If still not granted → abort
   if (finalStatus !== 'granted') {
-    alert('No notification permissions!');
+    Alert.alert('Notifications disabled', 'You will not receive alerts.');
     return null;
   }
 
-  // Get the token
+  // ✅ Get Expo Push Token
   token = (await Notifications.getExpoPushTokenAsync()).data;
+  console.log("✅ Expo Push Token:", token);
+
   return token;
 }
+
 
 
 function useNotificationListener() {
@@ -100,6 +124,7 @@ function useNotificationListener() {
     return () => subscription.remove();
   }, []);
 }
+// MUST be outside the component
 
 
 function PushTokenManager() {
@@ -204,7 +229,7 @@ export default function App() {
             <Stack.Screen
               name="CreateRequest"
               component={NewHrRequestScreen}
-              options={{ title: 'CreateRequest', headerShown: true }}
+              options={{ title: 'CreateRequest', headerShown: false }}
             />
             <Stack.Screen
               name="EmployeeDashboard"
@@ -214,7 +239,7 @@ export default function App() {
             <Stack.Screen
               name="NewHrRequestForm"
               component={NewHrRequestForm}
-              options={{ title: 'New HR Request Form', headerShown: true }}
+              options={{ title: 'New HR Request Form', headerShown: false }}
             />
             <Stack.Screen
               name="RequestsList"

@@ -20,7 +20,7 @@ import VacationRequestItem from '../../../components/Vacations/VacationRequestIt
 import { Linking } from 'react-native';
 
 // Same five colors (for reference):
-// #1f3d7c, #248bbc, #74933c, #4c6c7c, #1c6c7c
+// #1f3d7c, #248bbc, #74933c, #1f3d7c, #74933c
 
 const { width } = Dimensions.get('window');
 
@@ -195,7 +195,7 @@ const viewVacationDetails = async (req) => {
   };
 const DetailRow = ({ label, value, icon, multiline = false }) => (
   <View style={styles.detailRow}>
-    <MaterialIcons name={icon} size={18} color="#4c6c7c" style={{ marginRight: 8 }} />
+    <MaterialIcons name={icon} size={18} color="#1f3d7c" style={{ marginRight: 8 }} />
     <Text style={styles.detailLabel}>{label}:</Text>
     <Text
       style={[styles.detailValue, multiline && { flexWrap: 'wrap', flex: 1 }]}
@@ -246,7 +246,7 @@ const renderTabBar = () => (
     if (vacLoading) {
       return (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4c6c7c" />
+          <ActivityIndicator size="large" color="#1f3d7c" />
           <Text style={styles.loadingText}>Loading Vacation Requests...</Text>
         </View>
       );
@@ -260,8 +260,8 @@ const renderTabBar = () => (
         {/* New Vacation Button */}
         <TouchableOpacity style={styles.newButton} onPress={handleNewVacationRequest}>
           <LinearGradient
-            // New vacation button gradient (#4c6c7c => #1c6c7c)
-            colors={['#4c6c7c', '#1c6c7c']}
+            // New vacation button gradient (#1f3d7c => #74933c)
+            colors={['#1f3d7c', '#74933c']}
             style={styles.gradientButton}
           >
             <MaterialIcons name="add" size={24} color="#fff" />
@@ -432,7 +432,7 @@ const renderTabBar = () => (
     if (exitLoading) {
       return (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4c6c7c" />
+          <ActivityIndicator size="large" color="#1f3d7c" />
           <Text style={styles.loadingText}>Loading Exit/Entry Requests...</Text>
         </View>
       );
@@ -442,8 +442,8 @@ const renderTabBar = () => (
       <View style={{ flex: 1, padding: 16 }}>
         <TouchableOpacity style={styles.newButton} onPress={handleNewExitEntry}>
           <LinearGradient
-            // New exit button gradient (#74933c => #4c6c7c)
-            colors={['#74933c', '#4c6c7c']}
+            // New exit button gradient (#74933c => #1f3d7c)
+            colors={['#74933c', '#1f3d7c']}
             style={styles.gradientButton}
           >
             <MaterialIcons name="exit-to-app" size={24} color="#fff" />
@@ -476,7 +476,7 @@ const renderTabBar = () => (
                 </View>
 
                 <View style={styles.detailRow}>
-                  <MaterialIcons name="date-range" size={16} color="#4c6c7c" />
+                  <MaterialIcons name="date-range" size={16} color="#1f3d7c" />
                   <Text style={styles.detailText}>
                     {item.validity_from_date} - {item.validity_to_date}
                   </Text>
@@ -568,7 +568,7 @@ tabItem: {
 },
 
 tabItemActive: {
-  borderBottomColor: '#4c6c7c', // the underline color for active tab
+  borderBottomColor: '#1f3d7c', // the underline color for active tab
 },
 
 tabText: {
@@ -578,7 +578,7 @@ tabText: {
 },
 
 tabTextActive: {
-  color: '#4c6c7c',
+  color: '#1f3d7c',
   fontWeight: '600',
 },
 
@@ -588,7 +588,7 @@ tabTextActive: {
     left: '50%',
     height: 3,
     width: '100%',
-    backgroundColor: '#4c6c7c',
+    backgroundColor: '#1f3d7c',
     transform: [{ translateX: -width * 0.5 }],
   },
 
@@ -608,7 +608,7 @@ tabTextActive: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 12,
-    color: '#4c6c7c',
+    color: '#1f3d7c',
   },
   inputRow: {
     flexDirection: 'row',
@@ -618,7 +618,7 @@ tabTextActive: {
     flex: 1,
   },
   label: {
-    color: '#4c6c7c',
+    color: '#1f3d7c',
     fontSize: 14,
     marginBottom: 5,
     fontWeight: '500',
@@ -687,7 +687,7 @@ tabTextActive: {
     marginVertical: 10,
   },
   pageButton: {
-    backgroundColor: '#1c6c7c',
+    backgroundColor: '#74933c',
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -763,7 +763,7 @@ attachmentText: {
   exitType: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#4c6c7c',
+    color: '#1f3d7c',
   },
   statusBadge: {
     borderRadius: 15,
@@ -843,7 +843,7 @@ attachmentText: {
     backgroundColor: '#ccc',
   },
   confirmBtn: {
-    backgroundColor: '#1c6c7c',
+    backgroundColor: '#74933c',
   },
   modalButtonText: {
     color: '#fff',

@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   sectionCard: {
     backgroundColor: COLORS.card,
     borderRadius: 10,
-    padding: 12,
+    padding: 5,
     marginBottom: 15,
     borderWidth: 1,
     borderColor: COLORS.border,

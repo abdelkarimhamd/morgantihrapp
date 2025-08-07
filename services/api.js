@@ -8,11 +8,9 @@ import { Alert } from 'react-native';
 let attemptedRefresh = false; // prevents infinite loop if refresh fails
 
 const api = axios.create({
-  // For React Native, you might have something like:
-  // baseURL: 'http://localhost:8000/api',
-  // or if using an env:
+
   baseURL: 'https://app.morgantigcc.com/hr_system/backend/public/api',
-  // baseURL: process.env.API_URL || 'http://10.0.2.2:8000/api',
+
 });
 
 // Attach token on every request if present

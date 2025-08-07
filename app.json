@@ -3,76 +3,71 @@
     "name": "MorgantiHR",
     "slug": "morganti-hr",
     "scheme": "morgantihr",
-    "version": "1.0.0",
+    "version": "1.01",
     "orientation": "portrait",
     "owner": "ahamedhr",
-
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-
-"ios": {
-  "supportsTablet": true,
-  "bundleIdentifier": "com.morgantigcc.hr",
-"infoPlist": {
-  "NSFaceIDUsageDescription": "Allow Face ID for quick login.",
-  "NSCameraUsageDescription": "Morganti HR uses the camera to scan documents and capture photos for HR-related requests.",
-  "ITSAppUsesNonExemptEncryption": false,
-  "NSLocationWhenInUseUsageDescription":
-    "Allow Morganti HR to access your location while you use the app so we can suggest nearby projects and auto-fill addresses."
-}
-
-},
-
+    "newArchEnabled": false,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.morganti.hr",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Allow Face ID for quick login.",
+        "NSCameraUsageDescription": "Morganti HR uses the camera to scan documents and capture photos for HR-related requests.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Allow Morganti HR to access your location so we can suggest nearby projects and auto-fill addresses."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyDgKRyN_9wKhwE_Iw3J3Efkjqu1E09mszc"
+      }
+    },
     "android": {
       "package": "com.morgantigcc.hr",
-
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-
       "permissions": [
         "CAMERA",
         "POST_NOTIFICATIONS",
-
-       
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
-       
-        ,"ACCESS_BACKGROUND_LOCATION"
-     
       ],
-
       "googleServicesFile": "./google-services.json",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDgKRyN_9wKhwE_Iw3J3Efkjqu1E09mszc"
+        }
+      }
     },
-
     "web": {
       "favicon": "./assets/favicon.png"
     },
-
     "plugins": [
       "expo-secure-store",
-
       [
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#1f3d7c",
           "sounds": []
         }
       ],
-
       [
         "expo-build-properties",
         {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
+            "kotlinVersion": "2.0.21"
+          },
           "ios": {
             "useFrameworks": "static",
             "modular_headers": true
@@ -80,7 +75,9 @@
         }
       ]
     ],
-
+    "updates": {
+      "enabled": false
+    },
     "extra": {
       "eas": {
         "projectId": "6a0365ad-85c2-4b64-aa6c-4b4d8c1b6c8d"

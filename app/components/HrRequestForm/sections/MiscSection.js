@@ -117,7 +117,7 @@ const MiscSection = ({ formValues, setFormValues }) => {
                   <MaterialCommunityIcons
                     name={item.icon}
                     size={20}
-                    color={formValues.requestedItem === item.id ? '#7E57C2' : '#5E35B1'}
+                    color={formValues.requestedItem === item.id ? '#74933c' : '#74933c'}
                   />
                 </View>
                 <View>
@@ -133,12 +133,12 @@ const MiscSection = ({ formValues, setFormValues }) => {
           {/* Temporary Switch */}
           <View style={styles.switchContainer}>
             <View style={styles.switchLabel}>
-              <MaterialCommunityIcons name="timer-sand" size={20} color="#5E35B1" />
+              <MaterialCommunityIcons name="timer-sand" size={20} color="#74933c" />
               <Text style={styles.switchText}>Temporary Request</Text>
             </View>
             <Switch
-              trackColor={{ false: "#E0E0E0", true: "#EDE7F6" }}
-              thumbColor={formValues.isTemporary ? "#5E35B1" : "#FAFAFA"}
+              trackColor={{ false: "#E0E0E0", true: "#4c6c7c" }}
+              thumbColor={formValues.isTemporary ? "#74933c" : "#FAFAFA"}
               ios_backgroundColor="#3e3e3e"
               onValueChange={val => handleSwitch('isTemporary', val)}
               value={formValues.isTemporary}
@@ -156,20 +156,20 @@ const MiscSection = ({ formValues, setFormValues }) => {
                     style={styles.dateTimeInput}
                     onPress={() => handleOpenPicker('miscFromDate', 'date')}
                   >
-                    <MaterialCommunityIcons name="calendar" size={18} color="#5E35B1" />
+                    <MaterialCommunityIcons name="calendar" size={18} color="#74933c" />
                     <Text style={styles.dateTimeText}>{formatDate(formValues.miscFromDate)}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.dateTimeInput, styles.timeInput]}
                     onPress={() => handleOpenPicker('miscFromTime', 'time')}
                   >
-                    <MaterialCommunityIcons name="clock" size={18} color="#5E35B1" />
+                    <MaterialCommunityIcons name="clock" size={18} color="#74933c" />
                     <Text style={styles.dateTimeText}>{formatTime(formValues.miscFromTime)}</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.arrowContainer}>
-                  <MaterialCommunityIcons name="arrow-right" size={24} color="#7E57C2" />
+                  <MaterialCommunityIcons name="arrow-right" size={24} color="#74933c" />
                 </View>
 
                 <View style={styles.dateTimeColumn}>
@@ -178,14 +178,14 @@ const MiscSection = ({ formValues, setFormValues }) => {
                     style={styles.dateTimeInput}
                     onPress={() => handleOpenPicker('miscToDate', 'date')}
                   >
-                    <MaterialCommunityIcons name="calendar" size={18} color="#5E35B1" />
+                    <MaterialCommunityIcons name="calendar" size={18} color="#74933c" />
                     <Text style={styles.dateTimeText}>{formatDate(formValues.miscToDate)}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.dateTimeInput, styles.timeInput]}
                     onPress={() => handleOpenPicker('miscToTime', 'time')}
                   >
-                    <MaterialCommunityIcons name="clock" size={18} color="#5E35B1" />
+                    <MaterialCommunityIcons name="clock" size={18} color="#74933c" />
                     <Text style={styles.dateTimeText}>{formatTime(formValues.miscToTime)}</Text>
                   </TouchableOpacity>
                 </View>
@@ -242,7 +242,7 @@ const MiscSection = ({ formValues, setFormValues }) => {
 
 const styles = StyleSheet.create({
   container: { 
-    padding: 16, 
+    padding: 5, 
     paddingBottom: 40, 
     backgroundColor: '#F5F7FB' 
   },
@@ -253,13 +253,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     elevation: 2,
-    shadowColor: '#6A0DAD',
+    shadowColor: '#1f3d7c',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
   },
   headerIconContainer: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#74933c',
     width: 56,
     height: 56,
     borderRadius: 16,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   headerTitle: { 
     fontSize: 24, 
     fontWeight: '700', 
-    color: '#4527A0', 
+    color: '#1f3d7c', 
     textAlign: 'center',
     fontFamily: 'sans-serif-medium' 
   },
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     padding: 24, 
     marginBottom: 20,
     elevation: 3,
-    shadowColor: '#5E35B1',
+    shadowColor: '#74933c',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -297,12 +297,17 @@ const styles = StyleSheet.create({
   sectionHeader: { 
     fontSize: 16, 
     fontWeight: '600', 
-    color: '#4527A0', 
+    color: '#1f3d7c', 
     marginBottom: 16, 
     marginTop: 8,
     fontFamily: 'sans-serif-medium',
     letterSpacing: 0.2
   },
+  // #74933c (greenish)
+// #248bbc (blue)
+// #1f3d7c (dark blue)
+// #4c6c7c (gray/blue)
+// #1c6c7c (blueish)
   requestItemsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -310,23 +315,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   requestItem: {
-    width: '48%',
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#EDE7F6',
-    backgroundColor: '#F9F5FF',
+    borderColor: '#4c6c7c',
+    backgroundColor: '#fffff',
     marginBottom: 12,
   },
   selectedRequestItem: {
-    backgroundColor: '#EDE7F6',
-    borderColor: '#D1C4E9',
+    backgroundColor: '#4c6c7c',
+    borderColor: '#4c6c7c',
     borderWidth: 1.5,
   },
   itemIconContainer: {
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#4c6c7c',
     width: 36,
     height: 36,
     borderRadius: 10,
@@ -337,12 +342,12 @@ const styles = StyleSheet.create({
   requestItemText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#5E35B1',
+    color: '#74933c',
     fontFamily: 'sans-serif-medium'
   },
   itemCategory: {
     fontSize: 12,
-    color: '#7E57C2',
+    color: '#74933c',
     marginTop: 2,
     fontFamily: 'sans-serif'
   },
@@ -356,7 +361,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#EDE7F6',
+    borderColor: '#4c6c7c',
   },
   switchLabel: {
     flexDirection: 'row',
@@ -365,7 +370,7 @@ const styles = StyleSheet.create({
   switchText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#5E35B1',
+    color: '#74933c',
     marginLeft: 10,
     fontFamily: 'sans-serif-medium'
   },
@@ -375,12 +380,12 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#EDE7F6',
+    borderColor: '#4c6c7c',
   },
   temporaryHeader: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#5E35B1',
+    color: '#74933c',
     marginBottom: 16,
     fontFamily: 'sans-serif-medium'
   },
@@ -399,7 +404,7 @@ const styles = StyleSheet.create({
   },
   dateTimeLabel: {
     fontSize: 13,
-    color: '#7E57C2',
+    color: '#74933c',
     marginBottom: 8,
     fontWeight: '500',
     fontFamily: 'sans-serif'
@@ -420,7 +425,7 @@ const styles = StyleSheet.create({
   dateTimeText: {
     fontSize: 15,
     marginLeft: 10,
-    color: '#4527A0',
+    color: '#1f3d7c',
     fontWeight: '500',
     fontFamily: 'sans-serif-medium'
   },
@@ -442,7 +447,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   submitButton: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#74933c',
     borderRadius: 14,
     padding: 18,
     flexDirection: 'row',
@@ -450,7 +455,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 10,
     elevation: 2,
-    shadowColor: '#7E57C2',
+    shadowColor: '#74933c',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -501,22 +506,22 @@ const styles = StyleSheet.create({
   referenceText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#7E57C2',
+    color: '#74933c',
     marginTop: 12,
     fontFamily: 'sans-serif-medium'
   },
   newRequestButton: {
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#4c6c7c',
     borderRadius: 14,
     padding: 16,
     marginTop: 24,
     width: '100%',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#D1C4E9',
+    borderColor: '#4c6c7c',
   },
   newRequestButtonText: {
-    color: '#5E35B1',
+    color: '#74933c',
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'sans-serif-medium'

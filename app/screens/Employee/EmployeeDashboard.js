@@ -56,7 +56,7 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 function calculateServicePeriod(joinDate) {
   if (!joinDate) return '';
   const start = new Date(joinDate);
-  const now   = new Date();
+  const now = new Date();
   let y = now.getFullYear() - start.getFullYear();
   let m = now.getMonth() - start.getMonth();
   let d = now.getDate() - start.getDate();
@@ -77,7 +77,7 @@ function calculateServicePeriod(joinDate) {
  */
 function getStatusColor(status) {
   if (status === 'Approved') return COLORS.success;
-  if (status === 'Pending')  return COLORS.warning;
+  if (status === 'Pending') return COLORS.warning;
   return COLORS.error;
 }
 
@@ -90,6 +90,29 @@ export default function EmployeeDashboard() {
   const [employee, setEmployee] = useState(null);
   // Vacation balances
   const [vacations, setVacations] = useState([]);
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupText, setPopupText] = useState('');
+  const popupScale = useRef(new Animated.Value(0)).current;
+  function triggerSuccessPopup(message) {
+    setPopupText(message);
+    setShowPopup(true);
+    popupScale.setValue(0);
+
+    Animated.spring(popupScale, {
+      toValue: 1,
+      friction: 5,
+      tension: 80,
+      useNativeDriver: true,
+    }).start(() => {
+      setTimeout(() => {
+        Animated.timing(popupScale, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => setShowPopup(false));
+      }, 2000); // popup stays for 2 seconds
+    });
+  }
 
   // Attendance data
   const [attendanceMsg, setAttendanceMsg] = useState('');
@@ -112,9 +135,9 @@ export default function EmployeeDashboard() {
   const [currentProject, setCurrentProject] = useState(null); // geofence
 
   // Animated values
-  const mapOpacity     = useRef(new Animated.Value(0)).current;
+  const mapOpacity = useRef(new Animated.Value(0)).current;
   const messageOpacity = useRef(new Animated.Value(0)).current;
-  const buttonScale    = useRef(new Animated.Value(1)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
   const apiPrefix = getRoutePrefixByRole();
 
   function getRoutePrefixByRole() {
@@ -126,7 +149,7 @@ export default function EmployeeDashboard() {
     if (role === 'finance_coordinator') return '/finance_coordinator';
     return '/employee';
   }
-console.log('API Prefix:', apiPrefix);
+  console.log('API Prefix:', apiPrefix);
   // =============== EFFECTS ===============
   useEffect(() => {
     (async () => {
@@ -215,7 +238,7 @@ console.log('API Prefix:', apiPrefix);
   async function fetchAllData() {
     // Keep setLoading true only for initial load, not for background refresh
     if (!isRefreshing) {
-        setLoading(true);
+      setLoading(true);
     }
     try {
       const dash = await api.get(`${apiPrefix}/dashboard`);
@@ -240,7 +263,7 @@ console.log('API Prefix:', apiPrefix);
       setLoading(false);
     }
   }
-  
+
   // 3. Implemented the onRefresh function
   const onRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -249,17 +272,27 @@ console.log('API Prefix:', apiPrefix);
     });
   }, []);
 
+  function formatLocalTime() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  }
 
   // Get today's last punch
   async function fetchLastPunchOfToday() {
     if (!employee) return;
     try {
       const today = new Date();
-      const yyyy  = today.getFullYear();
-      const mm    = String(today.getMonth() + 1).padStart(2, '0');
-      const dd    = String(today.getDate()).padStart(2, '0');
-      const from  = `${yyyy}-${mm}-${dd} 00:00:00`;
-      const to    = `${yyyy}-${mm}-${dd} 23:59:59`;
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const from = `${yyyy}-${mm}-${dd} 00:00:00`;
+      const to = `${yyyy}-${mm}-${dd} 23:59:59`;
 
       const resp = await api.get('/attendances', {
         params: { employee_code: employee.employee_code, from, to },
@@ -305,7 +338,7 @@ console.log('API Prefix:', apiPrefix);
   async function promptBiometricAuth() {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     if (!hasHardware) throw new Error('No biometric hardware.');
-    const enrolled    = await LocalAuthentication.isEnrolledAsync();
+    const enrolled = await LocalAuthentication.isEnrolledAsync();
     if (!enrolled) throw new Error('No Face/Touch ID enrolled.');
 
     const result = await LocalAuthentication.authenticateAsync({
@@ -345,6 +378,12 @@ console.log('API Prefix:', apiPrefix);
       setAttendanceMsg(err.message || 'Biometric failed');
     }
   }
+  function getLocalTimeString() {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000; // in ms
+    const local = new Date(now - offset);
+    return local.toISOString().slice(0, 19).replace('T', ' ');
+  }
 
   async function handleCheck(type) {
     try {
@@ -352,7 +391,7 @@ console.log('API Prefix:', apiPrefix);
         employee_code: employee.employee_code,
         device_stgid: 'PHONE-01',
         project_id: currentProject,
-        log_time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        log_time: getLocalTimeString(),
         type,
         input_type: 'GPS',
         raw_payload: JSON.stringify({
@@ -364,7 +403,9 @@ console.log('API Prefix:', apiPrefix);
       const res = await api.post('/attendances', payload);
       if (res.data?.id) {
         setLastPunchType(type);
+        triggerSuccessPopup(`${type === 'CheckIn' ? 'Checked in' : 'Checked out'} 🤘`);
         setAttendanceMsg(`${type} successful! #${res.data.id}`);
+
         // Refresh last 5 attendance logs
         fetchLastFiveAttendances(employee.employee_code);
       } else {
@@ -375,7 +416,7 @@ console.log('API Prefix:', apiPrefix);
       const serverError = err?.response?.data?.error || '';
 
       if (serverError.includes('already checked in')) {
-        Alert.alert('Already Checked In', 'You are already checked in. Check out now?', [
+        Alert.alert('Already Checked In', 'You are already checked in. Check out now?e', [
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Yes',
@@ -421,7 +462,9 @@ console.log('API Prefix:', apiPrefix);
           </View>
         </LinearGradient>
       ))}
+
     </ScrollView>
+
   );
 
   // last 5 requests
@@ -438,204 +481,222 @@ console.log('API Prefix:', apiPrefix);
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      // 4. Added refreshControl prop to ScrollView
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={onRefresh}
-          colors={[COLORS.primary, COLORS.secondary]} // Android spinner colors
-          tintColor={COLORS.primary} // iOS spinner color
-        />
-      }
-    >
-      {/* Enhanced Header with gradient */}
-      <LinearGradient
-        colors={[COLORS.primary, '#3949ab']}
-        style={styles.header}
-      >
-        <View style={styles.profileContainer}>
+    <>
+      {showPopup && (
+        <Animated.View style={[styles.successPopupWrapper, { transform: [{ scale: popupScale }] }]}>
           <LinearGradient
-            colors={[COLORS.white, COLORS.background]}
-            style={styles.avatar}
+            colors={['#27ae60', '#2ecc71']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.successPopup}
           >
-            <Text style={styles.avatarText}>{employee?.name?.[0] || '?'}</Text>
+            <Ionicons name="checkmark-circle" size={60} color={COLORS.white} style={{ marginBottom: 10 }} />
+            <Text style={styles.popupText}>{popupText}</Text>
           </LinearGradient>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{employee?.name}</Text>
-            <Text style={styles.userRole}>{employee?.position}</Text>
-          </View>
-        </View>
-      </LinearGradient>
+        </Animated.View>
+      )}
 
-      {/* Leave Balances */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="wallet" size={24} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Leave Balances</Text>
-        </View>
-        <VacationCarousel />
-      </View>
 
-      {/* Location Tracking */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="navigate" size={24} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Current Location</Text>
-        </View>
-        <Text style={{ color: COLORS.text, marginBottom: 8 }}>
-          {location
-            ? `Lat: ${location.latitude.toFixed(4)}, Lng: ${location.longitude.toFixed(4)}`
-            : geoStatus || 'Location not available'}
-        </Text>
-        {currentProject === null && location && (
-          <Text style={[styles.locationStatus, { color: COLORS.error }]}>
-            You are not within any project's allowed radius!
-          </Text>
-        )}
-
-        <Animated.View style={[styles.mapContainer, { opacity: mapOpacity }]}>
-          {location && (
-            <MapView
-              style={styles.map}
-              initialRegion={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }}
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        // 4. Added refreshControl prop to ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary, COLORS.secondary]} // Android spinner colors
+            tintColor={COLORS.primary} // iOS spinner color
+          />
+        }
+      >
+        {/* Enhanced Header with gradient */}
+        <LinearGradient
+          colors={[COLORS.primary, '#3949ab']}
+          style={styles.header}
+        >
+          <View style={styles.profileContainer}>
+            <LinearGradient
+              colors={[COLORS.white, COLORS.background]}
+              style={styles.avatar}
             >
-              <Marker coordinate={location} pinColor={COLORS.secondary} />
-            </MapView>
-          )}
-        </Animated.View>
-      </View>
+              <Text style={styles.avatarText}>{employee?.name?.[0] || '?'}</Text>
+            </LinearGradient>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{employee?.name}</Text>
+              <Text style={styles.userRole}>{employee?.position}</Text>
+            </View>
+          </View>
+        </LinearGradient>
 
-      {/* Attendance Control */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="time" size={24} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Attendance</Text>
+        {/* Leave Balances */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="wallet" size={24} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Leave Balances</Text>
+          </View>
+          <VacationCarousel />
         </View>
 
-        <Animated.View style={{ opacity: messageOpacity }}>
-          <Text
-            style={[
-              styles.attendanceMessage,
-              attendanceMsg.includes('successful') && styles.successMessage,
-            ]}
-          >
-            {attendanceMsg}
+        {/* Location Tracking */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="navigate" size={24} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Current Location</Text>
+          </View>
+          <Text style={{ color: COLORS.text, marginBottom: 8 }}>
+            {location
+              ? `Lat: ${location.latitude.toFixed(4)}, Lng: ${location.longitude.toFixed(4)}`
+              : geoStatus || 'Location not available'}
           </Text>
-        </Animated.View>
-
-        {/* Pulse & Press scale button */}
-        <AttendanceButton
-          nextPunch={nextPunch}
-          handleCheckBiometric={handleCheckBiometric}
-          canCheckInOut={canCheckInOut}
-          buttonScale={buttonScale}
-          handlePressIn={handlePressIn}
-          handlePressOut={handlePressOut}
-        />
-      </View>
-
-      {/* Last 5 Attendance Logs */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="list" size={24} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Recent Attendance</Text>
-        </View>
-        {lastAttendances.map((att) => (
-          <View key={att.id} style={styles.activityCard}>
-            <Ionicons
-              name={att.type === 'CheckIn' ? 'log-in' : 'log-out'}
-              size={20}
-              color={att.type === 'CheckIn' ? COLORS.success : COLORS.error}
-            />
-            <View style={styles.activityDetails}>
-              <Text style={styles.activityTime}>
-                {new Date(att.log_time).toLocaleTimeString()}
-              </Text>
-              <Text style={styles.activityDate}>
-                {new Date(att.log_time).toLocaleDateString()}
-              </Text>
-            </View>
-            <Text style={styles.activityProject}>{att.project.name || 'No Project'}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Recent Requests */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="document-text" size={24} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Recent Requests</Text>
-        </View>
-        {last5Requests.map((request) => (
-          <View key={request.id} style={styles.requestCard}>
-            <View style={styles.requestHeader}>
-              <Text style={styles.requestType}>{request.leave_type}</Text>
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: getStatusColor(request.status) },
-                ]}
-              >
-                <Text style={styles.statusBadgeText}>{request.status}</Text>
-              </View>
-            </View>
-            <Text style={styles.requestDates}>
-              {request.start_date} → {request.end_date}
+          {currentProject === null && location && (
+            <Text style={[styles.locationStatus, { color: COLORS.error }]}>
+              You are not within any project's allowed radius!
             </Text>
-            {request.description && (
-              <Text style={styles.requestDescription} numberOfLines={1}>
-                {request.description}
-              </Text>
+          )}
+
+          <Animated.View style={[styles.mapContainer, { opacity: mapOpacity }]}>
+            {location && (
+              <MapView
+                style={styles.map}
+                initialRegion={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+              >
+                <Marker coordinate={location} pinColor={COLORS.secondary} />
+              </MapView>
             )}
-          </View>
-        ))}
-      </View>
-
-      {/* Announcements & Holidays */}
-      <View style={styles.section}>
-        <View style={styles.infoTabs}>
-          <TouchableOpacity
-            style={[styles.infoTab, annCount < announcements.length && styles.activeTab]}
-            onPress={() => setAnnCount((p) => p + 3)}
-          >
-            <Ionicons name="megaphone" size={18} color={COLORS.teal} />
-            <Text style={styles.infoTabText}>Announcements</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.infoTab, holCount < holidays.length && styles.activeTab]}
-            onPress={() => setHolCount((p) => p + 3)}
-          >
-            <Ionicons name="calendar" size={18} color={COLORS.teal} />
-            <Text style={styles.infoTabText}>Holidays</Text>
-          </TouchableOpacity>
+          </Animated.View>
         </View>
 
-        {/* Render announcements */}
-        {announcements.slice(0, annCount).map((ann) => (
-          <View key={ann.id} style={styles.infoCard}>
-            <Text style={styles.infoCardTitle}>{ann.title}</Text>
-            <Text style={styles.infoCardContent}>{ann.content}</Text>
+        {/* Attendance Control */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="time" size={24} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Attendance</Text>
           </View>
-        ))}
 
-        {/* Render holidays */}
-        {holidays.slice(0, holCount).map((hol) => (
-          <View key={hol.id} style={styles.infoCard}>
-            <Text style={styles.infoCardTitle}>{hol.name}</Text>
-            <Text style={styles.infoCardContent}>{hol.holiday_date}</Text>
+          <Animated.View style={{ opacity: messageOpacity }}>
+            <Text
+              style={[
+                styles.attendanceMessage,
+                attendanceMsg.includes('successful') && styles.successMessage,
+              ]}
+            >
+              {attendanceMsg}
+            </Text>
+          </Animated.View>
+
+          {/* Pulse & Press scale button */}
+          <AttendanceButton
+            nextPunch={nextPunch}
+            handleCheckBiometric={handleCheckBiometric}
+            canCheckInOut={canCheckInOut}
+            buttonScale={buttonScale}
+            handlePressIn={handlePressIn}
+            handlePressOut={handlePressOut}
+          />
+        </View>
+
+        {/* Last 5 Attendance Logs */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="list" size={24} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Recent Attendance</Text>
           </View>
-        ))}
-      </View>
-    </ScrollView>
+          {lastAttendances.map((att) => (
+            <View key={att.id} style={styles.activityCard}>
+              <Ionicons
+                name={att.type === 'CheckIn' ? 'log-in' : 'log-out'}
+                size={20}
+                color={att.type === 'CheckIn' ? COLORS.success : COLORS.error}
+              />
+              <View style={styles.activityDetails}>
+                <Text style={styles.activityTime}>
+                  {new Date(att.log_time).toLocaleTimeString()}
+                </Text>
+                <Text style={styles.activityDate}>
+                  {new Date(att.log_time).toLocaleDateString()}
+                </Text>
+              </View>
+              <Text style={styles.activityProject}>{att.project.name || 'No Project'}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Recent Requests */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="document-text" size={24} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Recent Requests</Text>
+          </View>
+          {last5Requests.map((request) => (
+            <View key={request.id} style={styles.requestCard}>
+              <View style={styles.requestHeader}>
+                <Text style={styles.requestType}>{request.leave_type}</Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: getStatusColor(request.status) },
+                  ]}
+                >
+                  <Text style={styles.statusBadgeText}>{request.status}</Text>
+                </View>
+              </View>
+              <Text style={styles.requestDates}>
+                {request.start_date} → {request.end_date}
+              </Text>
+              {request.description && (
+                <Text style={styles.requestDescription} numberOfLines={1}>
+                  {request.description}
+                </Text>
+              )}
+            </View>
+          ))}
+        </View>
+
+        {/* Announcements & Holidays */}
+        <View style={styles.section}>
+          <View style={styles.infoTabs}>
+            <TouchableOpacity
+              style={[styles.infoTab, annCount < announcements.length && styles.activeTab]}
+              onPress={() => setAnnCount((p) => p + 3)}
+            >
+              <Ionicons name="megaphone" size={18} color={COLORS.teal} />
+              <Text style={styles.infoTabText}>Announcements</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.infoTab, holCount < holidays.length && styles.activeTab]}
+              onPress={() => setHolCount((p) => p + 3)}
+            >
+              <Ionicons name="calendar" size={18} color={COLORS.teal} />
+              <Text style={styles.infoTabText}>Holidays</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Render announcements */}
+          {announcements.slice(0, annCount).map((ann) => (
+            <View key={ann.id} style={styles.infoCard}>
+              <Text style={styles.infoCardTitle}>{ann.title}</Text>
+              <Text style={styles.infoCardContent}>{ann.content}</Text>
+            </View>
+          ))}
+
+          {/* Render holidays */}
+          {holidays.slice(0, holCount).map((hol) => (
+            <View key={hol.id} style={styles.infoCard}>
+              <Text style={styles.infoCardTitle}>{hol.name}</Text>
+              <Text style={styles.infoCardContent}>{hol.holiday_date}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </>
+
   );
 }
 
@@ -929,6 +990,37 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontStyle: 'italic',
   },
+  successPopup: {
+    position: 'absolute',
+    top: height * 0.3,
+    left: width * 0.1,
+    width: width * 0.8,
+    padding: 25,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 20,
+    shadowColor: '#27ae60',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    borderWidth: 2,
+    borderColor: COLORS.success,
+    zIndex: 9999,
+  },
+
+  popupText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.success,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+
+
 
   /* ---- Announcements & Holidays ---- */
   infoTabs: {
@@ -944,7 +1036,41 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: COLORS.background,
     marginHorizontal: 4,
+  }, successPopupWrapper: {
+    position: 'absolute',
+    top: height * 0.3,
+    left: width * 0.1,
+    width: width * 0.8,
+    zIndex: 9999,
+    elevation: 20,
+    shadowColor: '#27ae60',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
   },
+
+  successPopup: {
+    width: '100%',
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  popupText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.white,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+
   activeTab: {
     backgroundColor: 'rgba(28,108,124,0.08)',
     borderColor: COLORS.teal,

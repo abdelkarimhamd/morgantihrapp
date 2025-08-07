@@ -14,13 +14,17 @@ import * as DocumentPicker from 'expo-document-picker';
 
 import SectionHeader from '../SectionHeader';
 import FieldWithIcon from '../FieldWithIcon';
-
+// #74933c (greenish)
+// #248bbc (blue)
+// #1f3d7c (dark blue)
+// #4c6c7c (gray/blue)
+// #1c6c7c (blueish)
 /* ---------- UI COLORS ---------- */
 const COLORS = {
-  primary: '#7E57C2',
+  primary: '#74933c',
   card: '#FFFFFF',
   border: '#CFD8DC',
-  text: '#263238',
+  text: '#1f3d7c',
 };
 
 /* ---------- FILE RULES ---------- */

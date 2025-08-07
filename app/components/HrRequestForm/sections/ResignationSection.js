@@ -4,9 +4,9 @@ import SectionHeader from '../SectionHeader';
 import DateTimeField from '../DateTimeField';
 import FieldWithIcon from '../FieldWithIcon';
 const COLORS = {
-  primary: '#00796B',      // Teal
-  secondary: '#FF7043',    // Coral Orange
-  accent: '#4CAF50',       // Green (for success, positive actions)
+  primary: '#74933c',      // Teal
+  secondary: '#74933c',    // Coral Orange
+  accent: '#1f3d7c',       // Green (for success, positive actions)
   background: '#ECEFF1',   // Light Gray - Main background
   card: '#FFFFFF',         // White - For cards and input backgrounds
   textDark: '#263238',     // Dark Slate Gray - Primary text
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   sectionCard: {
     backgroundColor: COLORS.card,
     borderRadius: 10,
-    padding: 12,
+    padding: 5,
     marginBottom: 15,
     borderWidth: 1,
     borderColor: COLORS.border,

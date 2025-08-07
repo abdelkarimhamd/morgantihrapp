@@ -131,7 +131,7 @@ const LoansSection = ({ formValues, setFormValues }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F5F5' },
-  scrollContainer: { padding: 16 },
+  scrollContainer: { padding: 5 },
   header: { alignItems: 'center', marginBottom: 24 },
   headerTitle: { fontSize: 24, fontWeight: '700', marginTop: 10, color: '#00796B' },
   headerSubtitle: { fontSize: 14, color: '#607D8B', textAlign: 'center' },

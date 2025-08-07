@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -36,33 +36,45 @@ const isIOS = Platform.OS === 'ios';
 const Drawer = createDrawerNavigator();
 const ROLES_CAN_VIEW_ASSIGNED = ['manager', 'hr_admin', 'finance','ceo', 'finance_coordinator'];
 
-function LogoutScreen({ navigation }) {
-  const dispatch = useDispatch();
-  useEffect(() => {
-    dispatch(logoutUser());
-    navigation.replace('Login');
-  }, []);
-  return null;
-}
-
 function CustomDrawerContent(props) {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const dynamicStyles = getDynamicStyles(isLargeScreen, isIOS);
 
-  const handleLogoutConfirmation = () => {
+  const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', onPress: () => dispatch(logoutUser()) },
+      { 
+        text: 'Logout', 
+        onPress: () => {
+          dispatch(logoutUser());
+          // Navigate to Login screen after logout
+          props.navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
+        }
+      },
     ]);
   };
 
   return (
-    <LinearGradient colors={['#1c6c7c', '#1f3d7c']} style={dynamicStyles.gradientContainer}>
-      <DrawerContentScrollView {...props} contentContainerStyle={dynamicStyles.drawerScrollContainer}>
+    <LinearGradient 
+      colors={['#1c6c7c', '#1f3d7c']} 
+      style={dynamicStyles.gradientContainer}
+      start={{x: 0, y: 0}} 
+      end={{x: 1, y: 1}}
+    >
+      <DrawerContentScrollView 
+        {...props} 
+        contentContainerStyle={dynamicStyles.drawerScrollContainer}
+      >
         <View style={dynamicStyles.drawerHeader}>
           <View style={dynamicStyles.profilePicContainer}>
-            <Image source={{ uri: user?.avatar || 'https://via.placeholder.com/100' }} style={dynamicStyles.profilePic} />
+            <Image 
+              source={{ uri: user?.avatar || 'https://via.placeholder.com/100' }} 
+              style={dynamicStyles.profilePic} 
+            />
             <TouchableOpacity
               style={dynamicStyles.editProfileButton}
               onPress={() => props.navigation.navigate('Profile')}
@@ -73,10 +85,27 @@ function CustomDrawerContent(props) {
           <Text style={dynamicStyles.displayName}>{user?.name || 'Welcome Back'}</Text>
           <Text style={dynamicStyles.roleText}>{user?.role?.toUpperCase() || 'UNKNOWN ROLE'}</Text>
         </View>
+        
         <View style={dynamicStyles.drawerItemsContainer}>
-          <DrawerItemList {...props} itemStyle={dynamicStyles.drawerItem} labelStyle={dynamicStyles.drawerLabel} />
+          <DrawerItemList 
+            {...props} 
+            activeTintColor="#fff"
+            inactiveTintColor="#fff"
+            activeBackgroundColor="rgba(255,255,255,0.2)"
+            inactiveBackgroundColor="rgba(255,255,255,0.1)"
+            itemStyle={dynamicStyles.drawerItem}
+            labelStyle={dynamicStyles.drawerLabel} 
+          />
         </View>
       </DrawerContentScrollView>
+      
+      <TouchableOpacity 
+        style={dynamicStyles.logoutButton} 
+        onPress={handleLogout}
+      >
+        <MaterialIcons name="logout" size={24} color="#fff" />
+        <Text style={dynamicStyles.logoutText}>Logout</Text>
+      </TouchableOpacity>
     </LinearGradient>
   );
 }
@@ -86,20 +115,19 @@ export default function AppDrawer() {
   const dynamicStyles = getDynamicStyles(isLargeScreen, isIOS);
   const [hasPendingRequests, setHasPendingRequests] = useState(false);
   const [hasPendingVacations, setHasPendingVacations] = useState(false);
-  const apiPrefix = getRoutePrefixByRole();
-
-  function getRoutePrefixByRole() {
-    const role = useSelector((state) => state.auth.user?.role);
+  
+  const apiPrefix = useMemo(() => {
     if (role === 'hr_admin') return '/admin';
     if (role === 'manager') return '/manager';
     if (role === 'finance') return '/finance';
     if (role === 'ceo') return '/ceo';
     if (role === 'finance_coordinator') return '/finance_coordinator';
     return '/employee';
-  }
-console.log('API Prefix:', apiPrefix);
+  }, [role]);
+
   useEffect(() => {
     if (ROLES_CAN_VIEW_ASSIGNED.includes(role)) {
+      // Fetch pending requests
       api.get('/hr-requests/assigned-pending-breakdown')
         .then(res => {
           const data = res.data || {};
@@ -107,8 +135,8 @@ console.log('API Prefix:', apiPrefix);
           setHasPendingRequests(total > 0);
         })
         .catch(err => console.warn('Pending breakdown error', err));
-      const adjustedRole = role === 'hr_admin' ? 'admin' : role;
-
+      
+      // Fetch pending vacations
       api.get(`${apiPrefix}/vacation-requests/pending-count`)
         .then(res => {
           const count = res.data?.count || 0;
@@ -116,8 +144,7 @@ console.log('API Prefix:', apiPrefix);
         })
         .catch(err => console.warn('Pending vacations error', err));
     }
-  }, [role]);
-console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pending Vacations:', hasPendingVacations);
+  }, [role, apiPrefix]);
 
   const getScreenOptions = ({ navigation, route }) => ({
     header: () => <NotificationHeader navigation={navigation} title="HR System" />,
@@ -131,7 +158,6 @@ console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pen
         case 'VacationRequests': iconName = 'beach-access'; break;
         case 'Profile': iconName = 'account-circle'; break;
         case 'RequestsWithAssignedSplit': iconName = 'assignment'; break;
-        case 'Logout': iconName = 'logout'; break;
         default: iconName = 'info';
       }
       return <MaterialIcons name={iconName} size={24} color="#74933c" />;
@@ -146,17 +172,23 @@ console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pen
     >
       {role === 'hr_admin' && (
         <>
-          <Drawer.Screen name="AdminDashboard" component={AdminDashboard} options={{ title: 'Admin Dashboard' }} />
+          <Drawer.Screen 
+            name="AdminDashboard" 
+            component={AdminDashboard} 
+            options={{ title: 'Admin Dashboard' }} 
+          />
           <Drawer.Screen
             name="VactionsScreenHRScreen"
             component={VactionsScreenHRScreen}
             options={{
               title: 'Vacations',
-              drawerLabel: () => (
+              drawerLabel: ({ focused }) => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Vacations</Text>
+                  <Text style={[dynamicStyles.drawerLabel, focused && { fontWeight: '700' }]}>
+                    Vacations
+                  </Text>
                   {hasPendingVacations && (
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                    <View style={dynamicStyles.badge} />
                   )}
                 </View>
               ),
@@ -167,11 +199,13 @@ console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pen
             component={RequestsOverview}
             options={{
               title: 'Request Overview',
-              drawerLabel: () => (
+              drawerLabel: ({ focused }) => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Request Overview</Text>
+                  <Text style={[dynamicStyles.drawerLabel, focused && { fontWeight: '700' }]}>
+                    Request Overview
+                  </Text>
                   {hasPendingRequests && (
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                    <View style={dynamicStyles.badge} />
                   )}
                 </View>
               ),
@@ -179,21 +213,26 @@ console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pen
           />
         </>
       )}
-
 
       {role === 'manager' && (
         <>
-          <Drawer.Screen name="ManagerDashboard" component={ManagerDashboard} options={{ title: 'Manager Dashboard' }} />
+          <Drawer.Screen 
+            name="ManagerDashboard" 
+            component={ManagerDashboard} 
+            options={{ title: 'Manager Dashboard' }} 
+          />
           <Drawer.Screen
             name="VacationRequests"
             component={ManagerVacationRequestsScreen}
             options={{
               title: 'Vacations',
-              drawerLabel: () => (
+              drawerLabel: ({ focused }) => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Vacations</Text>
+                  <Text style={[dynamicStyles.drawerLabel, focused && { fontWeight: '700' }]}>
+                    Vacations
+                  </Text>
                   {hasPendingVacations && (
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                    <View style={dynamicStyles.badge} />
                   )}
                 </View>
               ),
@@ -204,11 +243,13 @@ console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pen
             component={RequestsOverview}
             options={{
               title: 'Request Overview',
-              drawerLabel: () => (
+              drawerLabel: ({ focused }) => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Request Overview</Text>
+                  <Text style={[dynamicStyles.drawerLabel, focused && { fontWeight: '700' }]}>
+                    Request Overview
+                  </Text>
                   {hasPendingRequests && (
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                    <View style={dynamicStyles.badge} />
                   )}
                 </View>
               ),
@@ -216,19 +257,26 @@ console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pen
           />
         </>
       )}
+
       {role === 'ceo' && (
         <>
-          <Drawer.Screen name="ManagerDashboard" component={ManagerDashboard} options={{ title: 'Manager Dashboard' }} />
+          <Drawer.Screen 
+            name="ManagerDashboard" 
+            component={ManagerDashboard} 
+            options={{ title: 'CEO Dashboard' }} 
+          />
           <Drawer.Screen
             name="VacationRequests"
             component={ManagerVacationRequestsScreen}
             options={{
               title: 'Vacations',
-              drawerLabel: () => (
+              drawerLabel: ({ focused }) => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Vacations</Text>
+                  <Text style={[dynamicStyles.drawerLabel, focused && { fontWeight: '700' }]}>
+                    Vacations
+                  </Text>
                   {hasPendingVacations && (
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                    <View style={dynamicStyles.badge} />
                   )}
                 </View>
               ),
@@ -239,11 +287,13 @@ console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pen
             component={RequestsOverview}
             options={{
               title: 'Request Overview',
-              drawerLabel: () => (
+              drawerLabel: ({ focused }) => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Request Overview</Text>
+                  <Text style={[dynamicStyles.drawerLabel, focused && { fontWeight: '700' }]}>
+                    Request Overview
+                  </Text>
                   {hasPendingRequests && (
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                    <View style={dynamicStyles.badge} />
                   )}
                 </View>
               ),
@@ -251,19 +301,26 @@ console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pen
           />
         </>
       )}
+
       {role === 'finance' && (
         <>
-          <Drawer.Screen name="ManagerDashboard" component={ManagerDashboard} options={{ title: 'Manager Dashboard' }} />
+          <Drawer.Screen 
+            name="ManagerDashboard" 
+            component={ManagerDashboard} 
+            options={{ title: 'Finance Dashboard' }} 
+          />
           <Drawer.Screen
             name="VacationRequests"
             component={ManagerVacationRequestsScreen}
             options={{
               title: 'Vacations',
-              drawerLabel: () => (
+              drawerLabel: ({ focused }) => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Vacations</Text>
+                  <Text style={[dynamicStyles.drawerLabel, focused && { fontWeight: '700' }]}>
+                    Vacations
+                  </Text>
                   {hasPendingVacations && (
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                    <View style={dynamicStyles.badge} />
                   )}
                 </View>
               ),
@@ -274,11 +331,13 @@ console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pen
             component={RequestsOverview}
             options={{
               title: 'Request Overview',
-              drawerLabel: () => (
+              drawerLabel: ({ focused }) => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Request Overview</Text>
+                  <Text style={[dynamicStyles.drawerLabel, focused && { fontWeight: '700' }]}>
+                    Request Overview
+                  </Text>
                   {hasPendingRequests && (
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c', marginLeft: 8 }} />
+                    <View style={dynamicStyles.badge} />
                   )}
                 </View>
               ),
@@ -289,29 +348,63 @@ console.log('Role:', role, 'Has Pending Requests:', hasPendingRequests, 'Has Pen
 
       {role === 'employee' && (
         <>
-          <Drawer.Screen name="EmployeeDashboard" component={EmployeeDashboard} options={{ title: 'Dashboard' }} />
-          <Drawer.Screen name="RequestsOverview" component={RequestsOverview} options={{ title: 'Request Overview' }} />
-          <Drawer.Screen name="EmployeeAllRequestsTabs" component={EmployeeAllRequestsTabs} options={{ title: 'My Requests' }} />
-        </>
-      )}
-      {role === 'finance_coordinator' && (
-        <>
-          <Drawer.Screen name="EmployeeDashboard" component={EmployeeDashboard} options={{ title: 'Dashboard' }} />
-          <Drawer.Screen name="RequestsOverview" component={RequestsOverview} options={{ title: 'Request Overview' }} />
-          <Drawer.Screen name="EmployeeAllRequestsTabs" component={EmployeeAllRequestsTabs} options={{ title: 'My Requests' }} />
+          <Drawer.Screen 
+            name="EmployeeDashboard" 
+            component={EmployeeDashboard} 
+            options={{ title: 'Dashboard' }}  
+          />
+          <Drawer.Screen 
+            name="RequestsOverview" 
+            component={RequestsOverview} 
+            options={{ title: 'Request Overview' }} 
+          />
+          <Drawer.Screen 
+            name="EmployeeAllRequestsTabs" 
+            component={EmployeeAllRequestsTabs} 
+            options={{ title: 'My Requests' }} 
+          />
         </>
       )}
 
-      <Drawer.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
-      <Drawer.Screen name="Logout" component={LogoutScreen} options={{ title: 'Logout' }} />
+      {role === 'finance_coordinator' && (
+        <>
+          <Drawer.Screen 
+            name="EmployeeDashboard" 
+            component={EmployeeDashboard} 
+            options={{ title: 'Dashboard' }} 
+          />
+          <Drawer.Screen 
+            name="RequestsOverview" 
+            component={RequestsOverview} 
+            options={{ title: 'Request Overview' }} 
+          />
+          <Drawer.Screen 
+            name="EmployeeAllRequestsTabs" 
+            component={EmployeeAllRequestsTabs} 
+            options={{ title: 'My Requests' }} 
+          />
+        </>
+      )}
+
+      <Drawer.Screen 
+        name="Profile" 
+        component={ProfileScreen} 
+        options={{ title: 'My Profile' }} 
+      />
     </Drawer.Navigator>
   );
 }
 
 function getDynamicStyles(isLarge, isIOS) {
   return StyleSheet.create({
-    gradientContainer: { flex: 1, paddingTop: isIOS ? 40 : 0 },
-    drawerScrollContainer: { flexGrow: 1, paddingBottom: 20 },
+    gradientContainer: { 
+      flex: 1, 
+      paddingTop: isIOS ? 40 : 0 
+    },
+    drawerScrollContainer: { 
+      flexGrow: 1, 
+      paddingBottom: 20 
+    },
     drawerHeader: {
       alignItems: 'center',
       paddingVertical: 25,
@@ -333,8 +426,12 @@ function getDynamicStyles(isLarge, isIOS) {
       shadowOpacity: 0.3,
       shadowRadius: 5,
       overflow: 'hidden',
+      position: 'relative',
     },
-    profilePic: { width: '100%', height: '100%' },
+    profilePic: { 
+      width: '100%', 
+      height: '100%' 
+    },
     editProfileButton: {
       position: 'absolute',
       bottom: 5,
@@ -342,43 +439,64 @@ function getDynamicStyles(isLarge, isIOS) {
       backgroundColor: '#1a237e',
       borderRadius: 15,
       padding: 5,
+      zIndex: 10,
     },
     displayName: {
       color: '#fff',
       fontSize: isLarge ? 22 : 18,
       fontWeight: '600',
       marginBottom: 4,
+      textAlign: 'center',
     },
     roleText: {
       color: '#74933c',
       fontSize: isLarge ? 16 : 14,
       fontWeight: '500',
+      textAlign: 'center',
     },
-    drawerItemsContainer: { flex: 1, paddingTop: 10 },
-    drawerItem: { borderRadius: 10, marginHorizontal: 10, marginVertical: 4 },
+    drawerItemsContainer: { 
+      flex: 1, 
+      paddingTop: 10 
+    },
+    drawerItem: { 
+      borderRadius: 10,
+      marginHorizontal: 10,
+      marginVertical: 4,
+    },
     drawerLabel: {
       fontSize: isLarge ? 18 : 16,
       fontWeight: '500',
       color: '#fff',
       marginLeft: -15,
     },
+    drawerStyle: {
+      width: isLarge ? 320 : 280,
+      backgroundColor: 'transparent',
+    },
     logoutButton: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       padding: 15,
       marginHorizontal: 15,
+      marginBottom: 20,
       borderRadius: 10,
-      backgroundColor: 'rgba(255,255,255,0.1)',
+      backgroundColor: 'rgba(255,255,255,0.2)',
       gap: 10,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.3)',
     },
     logoutText: {
       color: '#fff',
       fontSize: 16,
       fontWeight: '600',
     },
-    drawerStyle: {
-      width: isLarge ? 320 : 280,
-      backgroundColor: 'transparent',
+    badge: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: '#e74c3c',
+      marginLeft: 8,
     },
   });
 }

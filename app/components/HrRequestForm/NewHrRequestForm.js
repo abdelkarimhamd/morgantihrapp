@@ -26,29 +26,29 @@ import BusinessTripSection from './sections/BusinessTripSection';
 import FileUploadField from './FileUploadField';
 import SectionHeader from './SectionHeader';
 import api from '../../../services/api';
-
+// "#74933c", "#248bbc", "#1f3d7c", "#4c6c7c", "#1c6c7c"
 /* ——— theme ——— */
 const COLORS = {
-  primary: '#00796B',
+  primary: '#74933c',
   background: '#F4F6F8',
   card: '#FFFFFF',
   textDark: '#263238',
   error: '#E53935',
   border: '#CFD8DC',
   disabled: '#B0BEC5',
-  progressBarFill: '#004D40',
+  progressBarFill: '#248bbc',
 };
 
 /* ——— request meta ——— */
 export const REQUEST_TYPE_DETAILS = {
   to_leave:             { label: 'Leave Request',         color: '#42A5F5' },
-  loans:                { label: 'Loan Application',      color: '#AB47BC' },
+  loans:                { label: 'Loan Application',      color: '#1f3d7c' },
   finance_claim:        { label: 'Finance Claim',         color: '#26A69A' },
-  misc:                 { label: 'Miscellaneous',         color: '#FFA726' },
-  business_trip:        { label: 'Business Trip',         color: '#7E57C2' },
+  misc:                 { label: 'Miscellaneous',         color: '#1f3d7c' },
+  business_trip:        { label: 'Business Trip',         color: '#74933c' },
   bank:                 { label: 'Bank Information',      color: '#66BB6A' },
-  resignation:          { label: 'Resignation',           color: '#EF5350' },
-  personal_data_change: { label: 'Data Change',           color: '#5D4037' },
+  resignation:          { label: 'Resignation',           color: '#1f3d7c' },
+  personal_data_change: { label: 'Data Change',           color: '#74933c' },
 };
 
 /* ——— date helpers ——— */
@@ -220,32 +220,169 @@ export default function NewHrRequestForm({ navigation, route }) {
   const current = REQUEST_TYPE_DETAILS[formValues.request_type];
 
   /* -------- submit -------- */
-  const handleSubmit = async () => {
-    try {
-      setError(null);
-      setLoading(true);
+/* -------- submit -------- */
+/* -------- submit -------- */
+const handleSubmit = async () => {
+  try {
+    setError(null);
+    setLoading(true);
 
-      /* tiny client validation (example) */
-      if (formValues.request_type === 'to_leave' &&
-          (!formValues.fromDate || !formValues.toDate || !formValues.reason)) {
+    console.log("📝 Submitting form with values:", formValues);
+
+    // Basic client-side validation for required fields
+    if (formValues.request_type === 'to_leave') {
+      if (!formValues.fromDate || !formValues.toDate || !formValues.reason) {
+        console.warn("⚠️ Validation failed: Missing From/To dates or Reason.");
         setError('Please fill From/To dates and Reason.');
         setLoading(false);
         return;
       }
-
-      const fd = buildFormData(formValues);
-      /* 👉  NO manual Content-Type header.
-            Axios sets multipart/form-data & boundary automatically */
-      await api.post('/hr-requests', fd);
-
-      Alert.alert('Success', 'Request created!');
-      navigation.goBack();
-    } catch (e) {
-      setError(e?.response?.data?.message || e.message || 'Could not create request.');
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // ✅ Build FormData dynamically based on request type
+    const fd = new FormData();
+
+    const appendSafe = (key, value) => {
+      if (value === null || value === undefined || value === '') return;
+      if (typeof value === 'object' && value.uri) {
+        // RN-safe file append
+        const fileUri = value.uri;
+        const fileName = value.name || fileUri.split('/').pop() || `upload-${Date.now()}.jpg`;
+        const mimeType = value.mimeType || value.type || 'application/octet-stream';
+        fd.append(key, {
+          uri: Platform.OS === 'ios' ? fileUri.replace('file://', '') : fileUri,
+          name: fileName,
+          type: mimeType,
+        });
+      } else {
+        fd.append(key, String(value));
+      }
+    };
+
+    // Common field for all
+    appendSafe('request_type', formValues.request_type);
+
+    // ✅ Per-type mapping
+    switch (formValues.request_type) {
+      case 'to_leave':
+        appendSafe('leave_type', formValues.leaveType);
+        appendSafe('from_date', isoDate(formValues.fromDate));
+        appendSafe('from_time', isoTime(formValues.fromTime));
+        appendSafe('to_date', isoDate(formValues.toDate));
+        appendSafe('to_time', isoTime(formValues.toTime));
+        appendSafe('reason', formValues.reason);
+        break;
+
+      case 'loans':
+        appendSafe('loan_date', isoDate(formValues.loanDate));
+        appendSafe('no_of_payments', formValues.noOfPayments);
+        appendSafe('amount', formValues.loanAmount);
+        appendSafe('description', formValues.loanReason);
+        break;
+
+      case 'finance_claim':
+        formValues.financeClaims?.forEach((c, i) => {
+          appendSafe(`financeClaims[${i}][transaction_date]`, isoDate(c.transaction_date));
+          appendSafe(`financeClaims[${i}][expense_type]`, c.expense_type);
+          appendSafe(`financeClaims[${i}][amount]`, c.amount);
+          appendSafe(`financeClaims[${i}][notes]`, c.notes);
+          appendSafe(`financeClaims[${i}][attachment]`, c.attachment);
+        });
+        break;
+
+      case 'misc':
+        appendSafe('requested_item', formValues.requestedItem);
+        appendSafe('is_temporary', formValues.isTemporary ? 1 : 0);
+        appendSafe('miscReason', formValues.miscReason);
+        appendSafe('miscNotes', formValues.miscNotes);
+        appendSafe('from_date', isoDate(formValues.miscFromDate));
+        appendSafe('from_time', isoTime(formValues.miscFromTime));
+        appendSafe('to_date', isoDate(formValues.miscToDate));
+        appendSafe('to_time', isoTime(formValues.miscToTime));
+        break;
+
+      case 'business_trip':
+        appendSafe('business_trip_region', formValues.busTripRegion);
+        appendSafe('description', formValues.busTripReason);
+        appendSafe('notes', formValues.busTripNotes);
+        appendSafe('from_date', isoDate(formValues.fromDate));
+        appendSafe('from_time', isoTime(formValues.fromTime));
+        appendSafe('to_date', isoDate(formValues.toDate));
+        appendSafe('to_time', isoTime(formValues.toTime));
+
+        // Multiple attachments for business trip
+        formValues.businessTripAttachments?.forEach((file, idx) => {
+          console.log(`📂 Adding Business Trip file #${idx}:`, file);
+          appendSafe(`attachments[${idx}]`, file);
+        });
+        break;
+
+      case 'bank':
+        appendSafe('bank_transaction_date', isoDate(formValues.bankTransactionDate));
+        appendSafe('bank_name', formValues.bankName);
+        appendSafe('bank_branch', formValues.bankBranch);
+        appendSafe('new_account_number', formValues.newAccountNumber);
+        appendSafe('new_iban_number', formValues.newIbanNumber);
+        appendSafe('swift_code', formValues.swiftCode);
+        appendSafe('bank_notes', formValues.bankNotes);
+        break;
+
+      case 'resignation':
+        appendSafe('resignation_date', isoDate(formValues.resignation_date));
+        appendSafe('last_working_day', isoDate(formValues.last_working_day));
+        appendSafe('notice_period', formValues.notice_period);
+        appendSafe('resignation_reason', formValues.resignation_reason);
+        break;
+
+      case 'personal_data_change':
+        appendSafe('personal_data_field', formValues.personalDataField);
+        appendSafe('personal_data_value', formValues.personalDataValue);
+        break;
+    }
+
+    // ✅ Single optional attachment (for most types)
+    if (formValues.request_type !== 'finance_claim' && formValues.attachment?.uri) {
+      appendSafe('attachment', formValues.attachment);
+    }
+
+    // ✅ Debug log FormData contents
+    console.log("📦 Final FormData to send:");
+    for (let pair of fd._parts || []) {
+      console.log(`   ${pair[0]}:`, pair[1]);
+    }
+
+    // ✅ Send to backend
+    console.log("🚀 Sending multipart request...");
+    const response = await api.post('/hr-requests', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    });
+
+    console.log("✅ API Success Response:", response.data);
+    Alert.alert('Success', 'Request created successfully!');
+    navigation.goBack();
+
+  } catch (e) {
+    console.error("❌ API Error:", e?.message);
+
+    if (e?.response) {
+      console.error("Server Response:", e.response.data);
+      console.error("Status Code:", e.response.status);
+      setError(e.response?.data?.message || 'Server rejected the request.');
+    } else if (e?.request) {
+      console.error("🚨 No response received. Likely network or SSL issue.");
+      setError('Network error: could not reach server.');
+    } else {
+      console.error("🚨 Unknown error:", e.message);
+      setError(e.message || 'Unexpected error.');
+    }
+  } finally {
+    setLoading(false);
+    console.log("⏳ Request finished");
+  }
+};
+
+
 
   /* -------- UI -------- */
   return (
@@ -334,7 +471,7 @@ export default function NewHrRequestForm({ navigation, route }) {
 /* -------- styles -------- */
 const styles = StyleSheet.create({
   header: {
-    paddingTop: Platform.OS === 'android' ? 25 : 40,
+    paddingTop: Platform.OS === 'android' ? 40 : 90,
     paddingBottom: 12,
     paddingHorizontal: 15,
     borderBottomLeftRadius: 20,

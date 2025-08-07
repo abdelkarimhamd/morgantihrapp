@@ -1,5 +1,5 @@
 // File: app/screens/Manager/ManagerDashboard.jsx
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,834 +12,544 @@ import {
   StyleSheet,
   Alert,
   Animated,
+  RefreshControl,
 } from 'react-native';
 import moment from 'moment';
 import * as Location from 'expo-location';
 import * as LocalAuthentication from 'expo-local-authentication';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSelector } from 'react-redux';
+import MapView, { Marker } from 'react-native-maps';
 import api from '../../../services/api';
 
-// Optional: For map display
-import MapView, { Marker } from 'react-native-maps';
-
-/* ------------------------------------------
-   Enable LayoutAnimation for Android
------------------------------------------- */
+/* ────────────────────────────────────────────────────────────
+   Enable LayoutAnimation on Android
+────────────────────────────────────────────────────────────── */
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/* ------------------------------------------
-   Color Palette
------------------------------------------- */
+/* ────────────────────────────────────────────────────────────
+   Shared colour palette (same as Employee dashboard)
+────────────────────────────────────────────────────────────── */
 const COLORS = {
-  navy: '#1f3d7c',
-  brightBlue: '#248bbc',
-  forest: '#74933c',
-  teal: '#1c6c7c',
-  tealGray: '#4c6c7c',
-  white: '#ffffff',
-  background: '#f4f7f9', // Slightly cooler background
-  textDark: '#2d3748', // Darker text for better contrast
-  textLight: '#718096', // Softer light text
-  danger: '#e53935',
-  success: '#43a047',
-  warning: '#fb8c00',
-  border: '#e2e8f0',
+  primary:   '#1f3d7c',
+  secondary: '#248bbc',
+  accent:    '#74933c',
+  background:'#f8f9fd',
+  text:      '#2c3e50',
+  success:   '#27ae60',
+  error:     '#e74c3c',
+  warning:   '#f1c40f',
+  white:     '#ffffff',
+  teal:      '#1c6c7c',
+  border:    '#e2e8f0',
 };
 
-/* ------------------------------------------
-   Leave Type Configuration with Emojis
------------------------------------------- */
-const LEAVE_TYPE_CONFIG = {
-  Annual: { display: 'Annual', color: '#74933c', icon: '🌴' },
-  Sick: { display: 'Sick', color: '#248bbc', icon: '🤒' },
-  Emergency: { display: 'Emergency', color: '#e53935', icon: '🚨' },
-  Unpaid: { display: 'Unpaid', color: '#9e9e9e', icon: '💸' },
-  BabyBorn: { display: 'Baby Born', color: '#ff8f00', icon: '👶' },
-  FamilyDeath: { display: 'Passing Away (Family)', color: '#6d4c41', icon: '🕊️' },
-  Exam: { display: 'Exam', color: '#5e35b1', icon: '📝' },
-  Haj: { display: 'Haj', color: '#00897b', icon: '🕋' },
-  Marriage: { display: 'Marriage', color: '#c2185b', icon: '💍' },
-  Pregnancy: { display: 'Pregnancy', color: '#f06292', icon: '🤰' },
-  HusbandDeath: { display: 'Passing Away (Husband)', color: '#37474f', icon: '🖤' },
+/* ────────────────────────────────────────────────────────────
+   Leave‑type metadata (mini‑icons & colours)
+────────────────────────────────────────────────────────────── */
+const LEAVE_TYPE = {
+  Annual:       { label:'Annual',      icon:'🌴',  col:'#74933c' },
+  Sick:         { label:'Sick',        icon:'🤒',  col:'#248bbc' },
+  Emergency:    { label:'Emergency',   icon:'🚨',  col:'#e74c3c' },
+  Unpaid:       { label:'Unpaid',      icon:'💸',  col:'#9e9e9e' },
+  BabyBorn:     { label:'Baby Born',   icon:'👶',  col:'#ff8f00' },
+  FamilyDeath:  { label:'Family Loss', icon:'🕊️', col:'#6d4c41' },
+  Exam:         { label:'Exam',        icon:'📝',  col:'#5e35b1' },
+  Haj:          { label:'Haj',         icon:'🕋',  col:'#00897b' },
+  Marriage:     { label:'Marriage',    icon:'💍',  col:'#c2185b' },
+  Pregnancy:    { label:'Pregnancy',   icon:'🤰',  col:'#f06292' },
+  HusbandDeath: { label:'Husb. Loss',  icon:'🖤',  col:'#37474f' },
 };
 
-/* ------------------------------------------
-   Helper Functions
------------------------------------------- */
-const calculateServicePeriod = (joinDate) => {
-  if (!joinDate) return 'N/A';
+/* ────────────────────────────────────────────────────────────
+   Helper utilities
+────────────────────────────────────────────────────────────── */
+const servicePeriod = (joinDate) => {
+  if (!joinDate) return '—';
   const diff = moment.duration(moment().diff(moment(joinDate)));
-  const years = diff.years();
-  const months = diff.months();
-  return `${years}y ${months}m`;
+  return `${diff.years()}y ${diff.months()}m`;
 };
-
-const daysRemainingInYear = () => {
-  return moment().endOf('year').diff(moment(), 'days');
-};
-
-const getDailyAccrualRate = (contract, leaveType) => {
-  if (leaveType === 'Annual') {
+const daysLeftThisYear = () => moment().endOf('year').diff(moment(), 'days');
+const accrualRate = (contract, type) => {
+  if (type === 'Annual') {
     if (contract === '30 Days Yearly') return 30 / 365;
     if (contract === '21 Days Yearly') return 21 / 365;
   }
   return 0;
 };
-
-// Animated Touchable
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-/*
-================================================================================
-MAIN COMPONENT: ManagerDashboard
-================================================================================
-*/
+/* ╔══════════════════════════════════════════════════════════╗
+   ║                     MAIN COMPONENT                      ║
+   ╚══════════════════════════════════════════════════════════╝ */
 export default function ManagerDashboard() {
-  const [loading, setLoading] = useState(true);
+  /* ── DATA STATE ─────────────────────────────── */
+  const [loading,       setLoading]       = useState(true);
+  const [refreshing,    setRefreshing]    = useState(false);
+  const [manager,       setManager]       = useState(null);
+  const [contractType,  setContractType]  = useState('');
+  const [vacations,     setVacations]     = useState([]);
+  const [myReqs,        setMyReqs]        = useState([]);
+  const [subReqs,       setSubReqs]       = useState([]);
+  const [holidays,      setHolidays]      = useState([]);
+  const [anns,          setAnns]          = useState([]);
 
-  // Data states
-  const [manager, setManager] = useState(null);
-  const [contractType, setContractType] = useState('');
-  const [vacations, setVacations] = useState([]);
-  const [myReqs, setMyReqs] = useState([]);
-  const [subReqs, setSubReqs] = useState([]);
-  const [holidays, setHolidays] = useState([]);
-  const [anns, setAnns] = useState([]);
-  const apiPrefix = getRoutePrefixByRole();
-
-  function getRoutePrefixByRole() {
-    const role = useSelector((state) => state.auth.user?.role);
-    if (role === 'hr_admin') return '/admin';
-    if (role === 'manager') return '/manager';
-    if (role === 'finance') return '/finance';
-    if (role === 'ceo') return '/ceo';
-    if (role === 'finance_coordinator') return '/finance_coordinator';
-    return '/employee';
-  }
-  // UI states
-  const [openSections, setOpenSections] = useState({
-    balances: true,
-    myReqs: true,
-    subReqs: true,
-    anns: true,
-    hols: true,
-  });
-  const role = useSelector((state) => state.auth.user?.role);
-
-  // Attendance & Location states
-  const [location, setLocation] = useState(null);
-  const [geoStatus, setGeoStatus] = useState('');
+  /* ── LOCATION & ATTENDANCE ───────────────────── */
+  const [location,      setLocation]      = useState(null);
+  const [currentProject,setCurrentProject]= useState(null);   // ← NEW
+  const [geoStatus,     setGeoStatus]     = useState('');
   const [attendanceMsg, setAttendanceMsg] = useState('');
   const [lastPunchType, setLastPunchType] = useState(null);
 
-  // Animation refs
-  const messageOpacity = useRef(new Animated.Value(0)).current;
-  const buttonScale = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  /* ── UI STATE ────────────────────────────────── */
+  const [open,          setOpen]          = useState({ balances:true,my:true,sub:true,anns:true,hols:true });
+  const role = useSelector((s)=>s.auth.user?.role);
 
-  // Initial data fetch and location setup
+  /* ── ANIMATION HOOKS ─────────────────────────── */
+  const messageOpacity = useRef(new Animated.Value(0)).current;
+  const btnScale       = useRef(new Animated.Value(1)).current;
+  const pulseAvatar    = useRef(new Animated.Value(1)).current;
+
+  /* ── PREFIX RESOLVER ─────────────────────────── */
+  const apiPrefix = (() => {
+    switch (role) {
+      case 'hr_admin':            return '/admin';
+      case 'manager':             return '/manager';
+      case 'finance':             return '/finance';
+      case 'ceo':                 return '/ceo';
+      case 'finance_coordinator': return '/finance_coordinator';
+      default:                    return '/employee';
+    }
+  })();
+
+  /* ── INITIALISE ──────────────────────────────── */
   useEffect(() => {
     requestLocationPermission();
-    fetchDashboard();
-
-    // Setup pulsing animation for the avatar
+    fetchAll();
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.05, duration: 1200, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
+        Animated.timing(pulseAvatar,{ toValue:1.06,duration:1200,useNativeDriver:true }),
+        Animated.timing(pulseAvatar,{ toValue:1,   duration:1200,useNativeDriver:true }),
       ])
     ).start();
   }, []);
 
-  // Fetch last punch info after manager data is available
-  useEffect(() => {
-    if (manager) fetchLastPunch();
-  }, [manager]);
+  useEffect(() => { if (manager) fetchLastPunch(); }, [manager]);
 
-  // Animate attendance message visibility
   useEffect(() => {
-    Animated.timing(messageOpacity, {
+    Animated.timing(messageOpacity,{
       toValue: attendanceMsg ? 1 : 0,
       duration: 300,
-      useNativeDriver: true,
+      useNativeDriver:true,
     }).start();
   }, [attendanceMsg]);
 
-  /* ------------------------------------------
-   Location & Permissions
-  ------------------------------------------ */
+  /* ── LOCATION HANDLERS ───────────────────────── */
   const requestLocationPermission = async () => {
     try {
-      setGeoStatus('Requesting location...');
+      setGeoStatus('Requesting GPS…');
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setGeoStatus('Permission denied.');
-        Alert.alert('Permission Denied', 'Location access is required for attendance marking.');
+        setGeoStatus('Permission denied');
+        Alert.alert('Permission Denied','Location access is required for attendance.');
         return;
       }
-      startLocationWatch();
-    } catch (err) {
-      console.error('Location Permission Error:', err);
-      setGeoStatus('Permission error.');
+      startWatcher();
+    } catch (e) {
+      console.error('Loc‑perm error',e);
+      setGeoStatus('Permission error');
     }
   };
 
-  const startLocationWatch = async () => {
-    setGeoStatus('Acquiring location...');
-    Location.watchPositionAsync({ accuracy: Location.Accuracy.High, distanceInterval: 1 }, (pos) => {
-      setLocation(pos.coords);
-      setGeoStatus(''); // Clear status once location is acquired
-    });
+  const startWatcher = async () => {
+    setGeoStatus('Getting location…');
+    await Location.watchPositionAsync(
+      { accuracy:Location.Accuracy.High, distanceInterval:1 },
+      (pos)=>{ 
+        setLocation(pos.coords);
+        setGeoStatus('');
+        checkGeofence(pos.coords);   // ← NEW
+      });
   };
 
-  /* ------------------------------------------
-   API Fetching
-  ------------------------------------------ */
-  const fetchDashboard = async () => {
-    setLoading(true);
-    try {
-      const [dashboard, hol, ann] = await Promise.all([
+  const checkGeofence = async (coords) => {
+    try{
+      const { data } = await api.get('/attendances/functionlati',{
+        params:{ lat:coords.latitude, lng:coords.longitude },
+      });
+      const inRange = (data.projects || []).find(p=>p.in_range);
+      setCurrentProject(inRange ? inRange.project_id : null);
+    }catch(err){
+      console.error('Geofence API err',err);
+      setCurrentProject(null);
+    }
+  };
+
+  /* ── API FETCHES ─────────────────────────────── */
+  const fetchAll = async () => {
+    !refreshing && setLoading(true);
+    try{
+      const [dashRes, holRes, annRes] = await Promise.all([
         api.get(`${apiPrefix}/dashboard`),
-        api.get(`/holidays`),
-        api.get(`/announcements`),
+        api.get('/holidays'),
+        api.get('/announcements'),
       ]);
-      const data = dashboard.data;
-      setManager(data.manager || {});
-      setContractType(data.manager?.contract_type || '');
-      setVacations(data.vacations || []);
-      setMyReqs(data.managerRequests || []);
-      setSubReqs(data.subordinateRequests || []);
-      setHolidays(hol.data || []);
-      setAnns(ann.data || []);
-    } catch (err) {
-      console.error('Dashboard Fetch Error:', err);
-      Alert.alert('Error', 'Could not load dashboard data.');
-    } finally {
+      const d = dashRes.data;
+      setManager(d.manager || {});
+      setContractType(d.manager?.contract_type || '');
+      setVacations(d.vacations || []);
+      setMyReqs(d.managerRequests || []);
+      setSubReqs(d.subordinateRequests || []);
+      setHolidays(holRes.data || []);
+      setAnns(annRes.data || []);
+    }catch(err){
+      console.error('Dash fetch err',err);
+      Alert.alert('Error','Could not load dashboard.');
+    }finally{
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(()=>{
+    setRefreshing(true);
+    fetchAll();
+  },[]);
 
   const fetchLastPunch = async () => {
-    try {
+    try{
       const today = moment().format('YYYY-MM-DD');
-      const resp = await api.get('/attendances', {
-        params: { employee_code: manager.employee_code, from: `${today} 00:00:00`, to: `${today} 23:59:59` },
+      const { data } = await api.get('/attendances',{
+        params:{
+          employee_code: manager.employee_code,
+          from:`${today} 00:00:00`,
+          to  :`${today} 23:59:59`,
+        },
       });
-      const list = resp.data.data || [];
-      list.sort((a, b) => new Date(b.log_time) - new Date(a.log_time));
-      setLastPunchType(list.length > 0 ? list[0].type : null);
-    } catch (err) {
-      console.error('Fetch Last Punch Error:', err);
-    }
+      const list = (data.data || []).sort((a,b)=>new Date(b.log_time)-new Date(a.log_time));
+      setLastPunchType(list[0]?.type ?? null);
+    }catch(e){ console.error('Last punch err',e); }
   };
 
-  /* ------------------------------------------
-   Attendance Logic
-  ------------------------------------------ */
-  const decideNextPunch = () => (!lastPunchType || lastPunchType === 'CheckOut' ? 'CheckIn' : 'CheckOut');
-  const canPunch = () => !!location;
-
-  const promptBiometricAuth = async () => {
-    const [hasHardware, isEnrolled] = await Promise.all([
-      LocalAuthentication.hasHardwareAsync(),
-      LocalAuthentication.isEnrolledAsync(),
-    ]);
-    if (!hasHardware) throw new Error('Biometric hardware not available.');
-    if (!isEnrolled) throw new Error('No biometrics enrolled on this device.');
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Authenticate to mark attendance',
-    });
-    if (!result.success) throw new Error(`Authentication failed: ${result.error}`);
-  };
+  /* ── ATTENDANCE LOGIC ────────────────────────── */
+  const nextPunch = !lastPunchType || lastPunchType==='CheckOut' ? 'CheckIn' : 'CheckOut';
+  const canPunch  = () => location && currentProject!==null;   // ← tightened
 
   const handlePunchBiometric = async () => {
-    if (!canPunch()) {
-      setAttendanceMsg('Cannot punch: Location not available.');
+    if(!canPunch()){
+      setAttendanceMsg('Out of range – cannot punch.');
       return;
     }
-    try {
-      // await promptBiometricAuth(); // Uncomment to enable biometrics
-      await handlePunch(decideNextPunch());
-    } catch (err) {
-      console.error('Biometric/Punch Error:', err);
-      setAttendanceMsg(err.message || 'Authentication failed.');
+    try{
+      await biometricAuth();
+      await submitPunch(nextPunch);
+    }catch(err){
+      console.error('Punch err',err);
+      setAttendanceMsg(err.message || 'Could not authenticate.');
     }
   };
 
-  const handlePunch = async (type) => {
-    try {
+  const biometricAuth = async () => {
+    const [hw,enr] = await Promise.all([LocalAuthentication.hasHardwareAsync(), LocalAuthentication.isEnrolledAsync()]);
+    if(!hw)  throw new Error('Device lacks biometric hardware.');
+    if(!enr) throw new Error('No biometrics enrolled.');
+    const res = await LocalAuthentication.authenticateAsync({ promptMessage:'Authenticate to proceed' });
+    if(!res.success) throw new Error('Authentication failed.');
+  };
+
+  const submitPunch = async (type) => {
+    try{
       const payload = {
         employee_code: manager.employee_code,
-        device_stgid: 'PHONE-01',
-        log_time: moment().format('YYYY-MM-DD HH:mm:ss'),
+        device_stgid : 'PHONE-01',
+        project_id   : currentProject,
+        log_time     : moment().format('YYYY-MM-DD HH:mm:ss'),
         type,
-        input_type: 'GPS',
-        raw_payload: JSON.stringify({
-          latitude: location?.latitude,
-          longitude: location?.longitude,
-        }),
+        input_type   : 'GPS',
+        raw_payload  : JSON.stringify({ latitude:location.latitude, longitude:location.longitude }),
       };
-      const res = await api.post(`${apiPrefix}/attendances`, payload);
-      if (res.data?.id) {
+      const { data } = await api.post(`/attendances`,payload);
+      if(data?.id){
         setLastPunchType(type);
-        setAttendanceMsg(`${type} successful at ${moment().format('hh:mm A')}.`);
-        fetchLastPunch(); // Re-fetch to confirm
-      } else {
-        throw new Error('Server returned no confirmation ID.');
-      }
-    } catch (err) {
-      console.error('Handle Punch Error:', err?.response?.data || err);
-      const serverError = err?.response?.data?.error || 'An unknown error occurred.';
-      setAttendanceMsg(serverError);
-      // Optional: Add specific alert logic for common errors like 'already checked in'
+        setAttendanceMsg(`${type} successful!`);
+      }else throw new Error('Server returned no ID.');
+    }catch(err){
+      console.error('Submit punch err',err?.response?.data || err);
+      setAttendanceMsg(err?.response?.data?.error || 'Attendance error');
     }
   };
 
-  // Button press animations
-  const handlePressIn = () => Animated.spring(buttonScale, { toValue: 0.96, useNativeDriver: true }).start();
-  const handlePressOut = () => Animated.spring(buttonScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
+  /* ── BUTTON PRESS FX ─────────────────────────── */
+  const pressIn  = ()=>Animated.spring(btnScale,{ toValue:0.95,useNativeDriver:true }).start();
+  const pressOut = ()=>Animated.spring(btnScale,{ toValue:1, friction:3, tension:40,useNativeDriver:true }).start();
 
-  /* ------------------------------------------
-   Derived Data & UI Helpers
-  ------------------------------------------ */
-  const latest = (arr) => [...arr].sort((a, b) => new Date(b.start_date) - new Date(a.start_date)).slice(0, 5);
-
-  const balances = vacations.map((v) => {
-    const current = +v.current_balance || 0;
-    const dailyRate = getDailyAccrualRate(contractType, v.leave_type);
-    const projected = current + dailyRate * daysRemainingInYear();
-    return { ...v, current_balance: current, projected_balance: projected };
+  /* ── DERIVED DATA ────────────────────────────── */
+  const latest = arr => [...arr].sort((a,b)=>new Date(b.start_date)-new Date(a.start_date)).slice(0,5);
+  const balances = vacations.map(v=>{
+    const cur = +v.current_balance || 0;
+    const proj = cur + accrualRate(contractType,v.leave_type)*daysLeftThisYear();
+    return {...v,current_balance:cur, projected_balance:proj};
   });
 
-  const toggleSection = (key) => {
+  const toggle = key => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+    setOpen(o=>({...o,[key]:!o[key]}));
   };
 
-  /* ------------------------------------------
-   Render Loading State
-  ------------------------------------------ */
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.navy} />
-        <Text style={styles.loadingText}>Loading Dashboard...</Text>
+  /* ── LOADING STATE ───────────────────────────── */
+  if(loading){
+    return(
+      <View style={styles.loadingBox}>
+        <ActivityIndicator size="large" color={COLORS.teal}/>
+        <Text style={styles.loadTxt}>Loading dashboard…</Text>
       </View>
     );
   }
 
-  /* ------------------------------------------
-   Main Render
-  ------------------------------------------ */
-  return (
-    <ScrollView style={styles.container}>
-      {/* --- HEADER --- */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerContent}>
-          <Animated.View style={[styles.avatar, { transform: [{ scale: pulseAnim }] }]}>
-            <Text style={styles.avatarText}>{manager?.name?.[0] || 'M'}</Text>
+  /* ── MAIN RENDER ─────────────────────────────── */
+  return(
+    <ScrollView
+      style={styles.wrapper}
+      refreshControl={<RefreshControl colors={[COLORS.primary,COLORS.secondary]} tintColor={COLORS.primary} refreshing={refreshing} onRefresh={onRefresh}/>}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* HEADER */}
+      <LinearGradient colors={[COLORS.primary,'#3949ab']} style={styles.header}>
+        <View style={styles.headRow}>
+          <Animated.View style={[styles.avatar,{ transform:[{scale:pulseAvatar}] }]}>
+            <Text style={styles.avatarTxt}>{manager?.name?.[0] || 'M'}</Text>
           </Animated.View>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerGreeting}>{moment().format('dddd, MMMM D')}</Text>
-            <Text style={styles.headerName} numberOfLines={1}>{manager?.name || 'Manager'}</Text>
-            <Text style={styles.headerSubText} numberOfLines={1}>
-              {manager?.position} {manager?.department ? `• ${manager.department}` : ''}
+          <View style={{flex:1}}>
+            <Text style={styles.dateTxt}>{moment().format('dddd, MMM D')}</Text>
+            <Text style={styles.nameTxt} numberOfLines={1}>{manager?.name}</Text>
+            <Text style={styles.roleTxt} numberOfLines={1}>
+              {manager?.position}{manager?.department ? ` • ${manager.department}` : ''}
             </Text>
-            <Text style={styles.headerSubText}>
-              Service: {calculateServicePeriod(manager?.joining_date)}
-            </Text>
+            <Text style={styles.roleTxt}>Service {servicePeriod(manager?.joining_date)}</Text>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
-      {/* --- ATTENDANCE --- */}
+      {/* ATTENDANCE CARD */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>My Attendance</Text>
-        <Animated.Text style={[styles.attendanceMessage, { opacity: messageOpacity, color: attendanceMsg.includes('successful') ? COLORS.success : COLORS.danger }]}>
+        <Animated.Text style={[styles.attMsg,{ opacity:messageOpacity, color:attendanceMsg.includes('successful')?COLORS.success:COLORS.error }]}>
           {attendanceMsg}
         </Animated.Text>
-        <Text style={styles.smallText}>
+
+        <Text style={styles.locTxt}>
           {location
-            ? `📍 Location: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
-            : `🛰️ ${geoStatus || 'Waiting for location...'}`}
+            ? `Lat ${location.latitude.toFixed(4)}, Lng ${location.longitude.toFixed(4)}`
+            : geoStatus || 'Waiting location…'}
         </Text>
-        {lastPunchType && (
-          <Text style={[styles.smallText, { marginTop: 4 }]}>
-            Last action: <Text style={{ fontWeight: '600' }}>{lastPunchType}</Text>
-          </Text>
-        )}
+        {currentProject===null && location && (<Text style={styles.outRange}>You are outside all projects’ geofence.</Text>)}
 
         {location && (
-          <View style={styles.mapContainer}>
+          <View style={styles.mapBox}>
             <MapView
               style={StyleSheet.absoluteFill}
               initialRegion={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
+                latitude:location.latitude,
+                longitude:location.longitude,
+                latitudeDelta:0.01,
+                longitudeDelta:0.01,
               }}
               scrollEnabled={false}
               zoomEnabled={false}
             >
-              <Marker coordinate={location} title="My Location" />
+              <Marker coordinate={location}/>
             </MapView>
           </View>
         )}
 
         <AnimatedTouchable
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
+          onPressIn={pressIn}
+          onPressOut={pressOut}
           onPress={handlePunchBiometric}
           disabled={!canPunch()}
           style={[
-            styles.punchButton,
-            {
-              backgroundColor: decideNextPunch() === 'CheckIn' ? COLORS.forest : COLORS.danger,
-              opacity: canPunch() ? 1 : 0.6,
-              transform: [{ scale: buttonScale }],
-            },
+            styles.punchBtn,
+            { backgroundColor:nextPunch==='CheckIn'?COLORS.accent:COLORS.error,
+              opacity:canPunch()?1:0.5,
+              transform:[{scale:btnScale}] }
           ]}
         >
-          <Text style={styles.punchButtonIcon}>🔒</Text>
-          <Text style={styles.punchButtonText}>
-            {decideNextPunch()} with Biometrics
-          </Text>
+          <Text style={styles.punchIcon}>{nextPunch==='CheckIn'?'🔓':'🔒'}</Text>
+          <Text style={styles.punchTxt}>{nextPunch} with Biometrics</Text>
         </AnimatedTouchable>
       </View>
 
-      {/* --- LEAVE BALANCES --- */}
-      <Section title="My Leave Balances" open={openSections.balances} onToggle={() => toggleSection('balances')}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4 }}>
-          {balances.map((b) => (
-            <BalanceCard key={b.leave_type} balance={b} />
-          ))}
+      {/* LEAVE BALANCES */}
+      <Section title="Leave Balances" open={open.balances} toggle={()=>toggle('balances')}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingHorizontal:4}}>
+          {balances.map(b=><BalanceCard key={b.leave_type} item={b}/>)}
         </ScrollView>
       </Section>
 
-      {/* --- MY REQUESTS --- */}
-      <Section title="My Recent Requests" open={openSections.myReqs} onToggle={() => toggleSection('myReqs')}>
-        <RequestList requests={latest(myReqs)} isSub={false} />
+      {/* OWN REQUESTS */}
+      <Section title="My Recent Requests" open={open.my} toggle={()=>toggle('my')}>
+        <RequestList data={latest(myReqs)} isSub={false}/>
       </Section>
 
-      {/* --- SUBORDINATE REQUESTS --- */}
-      {role !== 'finance' && (
-        <Section title="Subordinate Requests" open={openSections.subReqs} onToggle={() => toggleSection('subReqs')}>
-          <RequestList requests={latest(subReqs)} isSub />
+      {/* SUBORDINATE REQUESTS */}
+      {role!=='finance' && (
+        <Section title="Subordinate Requests" open={open.sub} toggle={()=>toggle('sub')}>
+          <RequestList data={latest(subReqs)} isSub/>
         </Section>
       )}
 
-      {/* --- ANNOUNCEMENTS --- */}
-      <Section title="Announcements" open={openSections.anns} onToggle={() => toggleSection('anns')}>
-        <TimelineList data={anns} type="announcement" />
+      {/* ANNOUNCEMENTS */}
+      <Section title="Announcements" open={open.anns} toggle={()=>toggle('anns')}>
+        <Timeline data={anns} kind="ann"/>
       </Section>
 
-      {/* --- HOLIDAYS --- */}
-      <Section title="Upcoming Holidays" open={openSections.hols} onToggle={() => toggleSection('hols')}>
-        <TimelineList data={holidays} type="holiday" />
+      {/* HOLIDAYS */}
+      <Section title="Holidays" open={open.hols} toggle={()=>toggle('hols')}>
+        <Timeline data={holidays} kind="hol"/>
       </Section>
     </ScrollView>
   );
 }
 
-/*
-================================================================================
-SUB-COMPONENTS
-================================================================================
-*/
-
-const Section = ({ title, open, onToggle, children }) => (
+/* ╔══════════════════════════════════════════════════════════╗
+   ║                   SUB‑COMPONENTS                        ║
+   ╚══════════════════════════════════════════════════════════╝ */
+const Section = ({ title, open, toggle, children }) => (
   <View style={styles.card}>
-    <TouchableOpacity activeOpacity={0.8} onPress={onToggle} style={styles.sectionHeader}>
-      <Text style={styles.sectionHeaderTitle}>{title}</Text>
-      <Text style={styles.sectionHeaderIcon}>{open ? '▲' : '▼'}</Text>
+    <TouchableOpacity style={styles.secHead} onPress={toggle} activeOpacity={0.8}>
+      <Text style={styles.secTitle}>{title}</Text>
+      <Text style={styles.secIcon}>{open?'▲':'▼'}</Text>
     </TouchableOpacity>
-    {open && <View style={styles.sectionBody}>{children}</View>}
+    {open && <View style={{paddingTop:12}}>{children}</View>}
   </View>
 );
 
-const BalanceCard = ({ balance }) => {
-  const cfg = LEAVE_TYPE_CONFIG[balance.leave_type] || {};
-  const used = balance.days_taken || 0;
-  const available = balance.current_balance;
+const BalanceCard = ({ item }) => {
+  const cfg = LEAVE_TYPE[item.leave_type] || {};
+  const used = item.days_taken || 0;
+  const available = item.current_balance;
   const total = used + available;
-  const pct = total > 0 ? (available / total) * 100 : 0;
-
-  return (
-    <View style={styles.balanceCard}>
-      <View style={styles.balanceHeader}>
-        <Text style={styles.leaveIcon}>{cfg.icon || '❓'}</Text>
-        <Text style={styles.leaveType}>{cfg.display || balance.leave_type}</Text>
+  const pct = total ? (available/total)*100 : 0;
+  return(
+    <View style={styles.balCard}>
+      <View style={styles.balHead}>
+        <Text style={styles.balIcon}>{cfg.icon || '❔'}</Text>
+        <Text style={styles.balType}>{cfg.label || item.leave_type}</Text>
       </View>
-      <Text style={styles.balanceValue}>{available.toFixed(1)} <Text style={{fontSize: 14, fontWeight: '500'}}>days</Text></Text>
-      <Text style={styles.balanceLabel}>Available</Text>
-
-      <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: cfg.color || COLORS.teal }]} />
+      <Text style={styles.balAvail}>{available.toFixed(1)} <Text style={{fontSize:13}}>days</Text></Text>
+      <View style={styles.barBg}>
+        <View style={[styles.barFill,{width:`${pct}%`,backgroundColor:cfg.col||COLORS.teal}]} />
       </View>
-      <View style={styles.balanceFooter}>
-        <Text style={styles.progressInfo}>Used: {used}</Text>
-        <Text style={styles.progressInfo}>Pending: {balance.on_hold || 0}</Text>
+      <View style={styles.balFoot}>
+        <Text style={styles.balInfo}>Used {used}</Text>
+        <Text style={styles.balInfo}>Pending {item.on_hold||0}</Text>
       </View>
     </View>
   );
 };
 
-const RequestList = ({ requests, isSub }) => {
-  if (requests.length === 0) return <Text style={styles.emptyState}>No requests found.</Text>;
-  return (
-    <View>
-      {requests.map((r, index) => {
-        const cfg = LEAVE_TYPE_CONFIG[r.leave_type] || {};
-        return (
-          <View key={r.id} style={[styles.requestRow, index === requests.length - 1 && styles.requestRowLast]}>
-            <View style={{ flex: isSub ? 1.2 : 1 }}>
-              {isSub && <Text style={styles.requestName}>{r.user?.name || `ID: ${r.user_id}`}</Text>}
-              <Text style={[styles.requestLeaveType, { color: cfg.color }]}>{cfg.display || r.leave_type}</Text>
-            </View>
-            <View style={styles.requestDates}>
-              <Text style={styles.requestDateText}>{moment(r.start_date).format('MMM D')}</Text>
-              <Text style={styles.requestDateText}>- {moment(r.end_date).format('MMM D, YY')}</Text>
-            </View>
-            <StatusBadge status={r.status} />
-          </View>
-        );
-      })}
+const RequestList = ({ data, isSub }) => {
+  if(!data.length) return <Text style={styles.empty}>No requests.</Text>;
+  return data.map((r,i)=>{
+    const cfg = LEAVE_TYPE[r.leave_type] || {};
+    return(
+      <View key={r.id} style={[styles.reqRow,i===data.length-1&&{borderBottomWidth:0}]}>
+        {isSub && <Text style={styles.reqEmp}>{r.user?.name||`ID ${r.user_id}`}</Text>}
+        <Text style={[styles.reqType,{color:cfg.col}]}>{cfg.label||r.leave_type}</Text>
+        <Text style={styles.reqDates}>{moment(r.start_date).format('MMM D')} – {moment(r.end_date).format('MMM D')}</Text>
+        <Status status={r.status}/>
+      </View>
+    );
+  });
+};
+
+const Status = ({ status }) => {
+  const bg = status==='Approved'?COLORS.success : status==='Pending'?COLORS.warning : COLORS.error;
+  return(
+    <View style={[styles.stBadge,{backgroundColor:bg}]}>
+      <Text style={styles.stTxt}>{status}</Text>
     </View>
   );
 };
 
-const StatusBadge = ({ status }) => {
-  const statusStyles = {
-    Approved: { backgroundColor: COLORS.success },
-    Pending: { backgroundColor: COLORS.warning },
-    Rejected: { backgroundColor: COLORS.danger },
-  };
-  return (
-    <View style={[styles.statusBadge, statusStyles[status] || { backgroundColor: COLORS.textLight }]}>
-      <Text style={styles.statusBadgeText}>{status}</Text>
+const Timeline = ({ data, kind }) => {
+  if(!data.length) return <Text style={styles.empty}>{kind==='hol'?'No holidays.':'No announcements.'}</Text>;
+  return data.map(item=>(
+    <View key={item.id} style={styles.timeRow}>
+      <View style={styles.dot}/>
+      <View style={{flex:1}}>
+        <Text style={styles.timeTit}>{kind==='hol'?item.name:item.title}</Text>
+        <Text style={styles.timeDate}>
+          {moment(kind==='hol'?item.holiday_date:item.created_at).format('ddd, MMM D YYYY')}
+        </Text>
+        {kind==='ann' && <Text style={styles.timeMsg}>{item.message}</Text>}
+      </View>
     </View>
-  );
+  ));
 };
 
-const TimelineList = ({ data, type }) => {
-  if (data.length === 0) {
-    return <Text style={styles.emptyState}>{type === 'holiday' ? '🎉 No holidays planned.' : '📭 No announcements yet.'}</Text>;
-  }
-  return (
-    <View style={styles.timelineContainer}>
-      {data.map((item, index) => (
-        <View key={item.id} style={styles.timelineItem}>
-          <View style={styles.timelineLine} />
-          <View style={[styles.timelineDot, type === 'holiday' && { backgroundColor: COLORS.forest }]} />
-          <View style={styles.timelineContent}>
-            <Text style={styles.timelineTitle}>{type === 'holiday' ? item.name : item.title}</Text>
-            <Text style={styles.timelineDate}>
-              {moment(type === 'holiday' ? item.holiday_date : item.created_at).format('dddd, MMM D, YYYY')}
-            </Text>
-            {type === 'announcement' && <Text style={styles.timelineMsg}>{item.message}</Text>}
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-};
-
-/*
-================================================================================
-STYLESHEET
-================================================================================
-*/
+/* ╔══════════════════════════════════════════════════════════╗
+   ║                      STYLES                             ║
+   ╚══════════════════════════════════════════════════════════╝ */
 const styles = StyleSheet.create({
-  // --- Containers & General ---
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: COLORS.navy,
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.navy,
-    marginBottom: 8,
-  },
-  smallText: {
-    fontSize: 13,
-    color: COLORS.textLight,
-  },
-  emptyState: {
-    textAlign: 'center',
-    marginVertical: 16,
-    color: COLORS.textLight,
-    fontSize: 14,
-  },
+  /* General wrappers */
+  wrapper:{flex:1,backgroundColor:COLORS.background},
+  loadingBox:{flex:1,justifyContent:'center',alignItems:'center',backgroundColor:COLORS.background},
+  loadTxt:{marginTop:12,color:COLORS.teal},
+  empty:{textAlign:'center',color:COLORS.text,opacity:0.5,paddingVertical:8},
 
-  // --- Header ---
-  headerContainer: {
-    backgroundColor: COLORS.navy,
-    padding: 16,
-    paddingTop: 40, // Adjust for status bar
-    paddingBottom: 40,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    elevation: 4,
-  },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: COLORS.navy,
-  },
-  headerTextContainer: {
-    flex: 1,
-  },
-  headerGreeting: {
-    fontSize: 14,
-    color: COLORS.border,
-  },
-  headerName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: COLORS.white,
-  },
-  headerSubText: {
-    fontSize: 13,
-    color: COLORS.border,
-    opacity: 0.9,
-  },
+  /* Header */
+  header:{paddingTop:50,paddingBottom:30,paddingHorizontal:24,borderBottomLeftRadius:30,borderBottomRightRadius:30},
+  headRow:{flexDirection:'row',alignItems:'center'},
+  avatar:{width:70,height:70,borderRadius:35,backgroundColor:COLORS.white,justifyContent:'center',alignItems:'center',marginRight:16,elevation:4},
+  avatarTxt:{fontSize:32,fontWeight:'700',color:COLORS.primary},
+  dateTxt:{fontSize:13,color:'rgba(255,255,255,0.7)'},
+  nameTxt:{fontSize:22,fontWeight:'700',color:COLORS.white},
+  roleTxt:{fontSize:13,color:'rgba(255,255,255,0.9)'},
 
-  // --- Attendance Section ---
-  attendanceMessage: {
-    marginVertical: 8,
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  mapContainer: {
-    height: 150,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 12,
-    marginBottom: 12,
-    backgroundColor: COLORS.border,
-  },
-  punchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  punchButtonIcon: {
-    fontSize: 18,
-    color: COLORS.white,
-    marginRight: 10,
-  },
-  punchButtonText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  /* Card */
+  card:{backgroundColor:COLORS.white,borderRadius:16,marginHorizontal:16,marginVertical:10,padding:16,elevation:3},
+  cardTitle:{fontSize:18,fontWeight:'600',color:COLORS.primary,marginBottom:6},
 
-  // --- Collapsible Section ---
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 0, // Removed padding as it's in the card now
-  },
-  sectionHeaderTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.navy,
-  },
-  sectionHeaderIcon: {
-    fontSize: 18,
-    color: COLORS.textLight,
-  },
-  sectionBody: {
-    paddingTop: 12,
-  },
+  /* Attendance */
+  attMsg:{textAlign:'center',fontWeight:'600',marginBottom:6},
+  locTxt:{fontSize:13,color:COLORS.text},
+  outRange:{fontSize:13,color:COLORS.error,marginTop:2},
+  mapBox:{height:150,borderRadius:12,overflow:'hidden',marginVertical:10},
+  punchBtn:{flexDirection:'row',alignItems:'center',justifyContent:'center',paddingVertical:12,borderRadius:12},
+  punchIcon:{fontSize:18,color:COLORS.white,marginRight:8},
+  punchTxt:{fontSize:16,fontWeight:'600',color:COLORS.white},
 
-  // --- Balance Card (Horizontal Scroll) ---
-  balanceCard: {
-    width: 160,
-    padding: 12,
-    marginHorizontal: 4,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  balanceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  leaveIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  leaveType: {
-    fontWeight: '600',
-    fontSize: 14,
-    color: COLORS.textDark,
-  },
-  balanceValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.textDark,
-  },
-  balanceLabel: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: COLORS.border,
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginVertical: 4,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  balanceFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  progressInfo: {
-    fontSize: 11,
-    color: COLORS.textLight,
-  },
+  /* Collapsible section header */
+  secHead:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},
+  secTitle:{fontSize:17,fontWeight:'600',color:COLORS.primary},
+  secIcon:{fontSize:16,color:COLORS.text},
 
-  // --- Request List ---
-  requestRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  requestRowLast: {
-    borderBottomWidth: 0,
-  },
-  requestName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textDark,
-  },
-  requestLeaveType: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  requestDates: {
-    flex: 1.5,
-    alignItems: 'center',
-  },
-  requestDateText: {
-    fontSize: 13,
-    color: COLORS.textLight,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  statusBadgeText: {
-    color: COLORS.white,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
+  /* Balance card */
+  balCard:{width:160,backgroundColor:'#f6f8fb',borderRadius:12,padding:12,marginHorizontal:4,borderWidth:1,borderColor:COLORS.border},
+  balHead:{flexDirection:'row',alignItems:'center',marginBottom:6},
+  balIcon:{fontSize:20,marginRight:6},
+  balType:{fontSize:14,fontWeight:'600',color:COLORS.text},
+  balAvail:{fontSize:24,fontWeight:'700',color:COLORS.text},
+  barBg:{height:6,backgroundColor:COLORS.border,borderRadius:3,overflow:'hidden',marginVertical:6},
+  barFill:{height:'100%'},
+  balFoot:{flexDirection:'row',justifyContent:'space-between'},
+  balInfo:{fontSize:11,color:COLORS.text},
 
-  // --- Timeline (Announcements & Holidays) ---
-  timelineContainer: {
-    paddingLeft: 10,
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    paddingBottom: 20,
-  },
-  timelineLine: {
-    position: 'absolute',
-    left: 4,
-    top: 12,
-    bottom: -10, // Extend line between dots
-    width: 2,
-    backgroundColor: COLORS.border,
-  },
-  timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.brightBlue,
-    marginTop: 5,
-    zIndex: 1, // Ensure dot is above the line
-  },
-  timelineContent: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  timelineTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.textDark,
-    lineHeight: 20,
-  },
-  timelineDate: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginVertical: 2,
-  },
-  timelineMsg: {
-    fontSize: 13,
-    color: COLORS.textDark,
-    lineHeight: 18,
-  },
+  /* Requests */
+  reqRow:{flexDirection:'row',alignItems:'center',borderBottomWidth:1,borderBottomColor:COLORS.border,paddingVertical:10},
+  reqEmp:{flex:1.3,fontSize:14,fontWeight:'600',color:COLORS.text},
+  reqType:{flex:1,fontSize:14,fontWeight:'600'},
+  reqDates:{flex:1.2,fontSize:13,color:COLORS.text},
+  stBadge:{borderRadius:20,minWidth:80,alignItems:'center',paddingVertical:4},
+  stTxt:{color:COLORS.white,fontSize:12,fontWeight:'700'},
+
+  /* Timeline */
+  timeRow:{flexDirection:'row',paddingBottom:20},
+  dot:{width:10,height:10,borderRadius:5,backgroundColor:COLORS.secondary,marginTop:4,marginRight:12},
+  timeTit:{fontSize:15,fontWeight:'600',color:COLORS.text},
+  timeDate:{fontSize:12,color:COLORS.text,opacity:0.6},
+  timeMsg:{fontSize:13,color:COLORS.text,marginTop:2},
 });
